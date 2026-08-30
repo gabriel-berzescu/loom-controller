@@ -14,7 +14,7 @@ function connect() {
   return new Promise((resolve, reject) => {
     if (ws && ws.readyState === WebSocket.OPEN) return resolve(ws);
     const s = new WebSocket(URL);
-    s.onopen = () => { ws = s; resolve(s); };
+    s.onopen = () => { ws = s; s.send(JSON.stringify({ id: 0, cmd: 'hello', params: { role: 'claude' } })); resolve(s); };
     s.onerror = () => reject(new Error('motorul nu e pornit (node motor.js)'));
     s.onclose = () => { if (ws === s) ws = null; };
     s.onmessage = ev => {
@@ -31,7 +31,7 @@ async function call(cmd, params = {}) {
   const id = nextId++;
   return new Promise((res, rej) => {
     pending.set(id, { res, rej });
-    s.send(JSON.stringify({ id, cmd, ...params }));
+    s.send(JSON.stringify({ id, cmd, params }));
     setTimeout(() => { if (pending.has(id)) { pending.delete(id); rej(new Error('timeout')); } }, 120000);
   });
 }
@@ -41,8 +41,11 @@ const text = t => ({ content: [{ type: 'text', text: typeof t === 'string' ? t :
 function describe(state, extra = {}) {
   const act = state.nodes.find(n => n.id === state.active);
   const sibs = act.parent_id === null ? [] : state.nodes.filter(n => n.parent_id === act.parent_id);
+  const hc = state.cursors?.find(c => c.role === 'human');
+  const human = hc && state.nodes.find(n => n.id === hc.active);
   return text({
     ...extra,
+    human: human ? { id: human.id, text: human.text } : 'neconectat',   // cursorul omului (are propriul cursor, separat de al tău)
     active: { id: act.id, text: act.text },
     siblings: sibs.map(n => ({ id: n.id, text: n.text, hidden: n.hidden || undefined, bookmarked: n.bookmarked || undefined })),
     children: state.nodes.filter(n => n.parent_id === act.id).map(n => ({ id: n.id, text: n.text, hidden: n.hidden || undefined })),
@@ -64,6 +67,14 @@ server.tool('up', 'Stick stâng JOS: coboară la părinte.', {},
   wrap(async () => { const r = await call('up'); return describe(r.state, r.result); }));
 server.tool('goto', 'Mută cursorul pe un nod după id (ce nu poate stick-ul: sări oriunde).', { id: z.number().int() },
   wrap(async ({ id }) => { const r = await call('goto', { id }); return describe(r.state); }));
+server.tool('follow_human', 'Sari cu cursorul tău pe nodul unde e cursorul omului.', {},
+  wrap(async () => {
+    const st = (await call('state')).result;
+    const hc = st.cursors.find(c => c.role === 'human');
+    if (!hc) throw new Error('niciun browser conectat');
+    const r = await call('goto', { id: hc.active });
+    return describe(r.state);
+  }));
 server.tool('path', 'Textul căii curente (rădăcină → cursor), plus siblingii și copiii nodului activ.', {},
   wrap(async () => { const r = await call('state'); return describe(r.state); }));
 server.tool('tree', 'Tot arborele, ca listă de noduri {id, parent_id, text, hidden, bookmarked}.', {},

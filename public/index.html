@@ -29,6 +29,7 @@
   .node.active{background:var(--accent);color:#000;border-color:var(--accent);z-index:2}
   .node.hidden{opacity:.3;text-decoration:line-through;color:var(--hidden)}
   .node.star::after{content:"★";color:var(--star);margin-left:5px}
+  .node.other{outline:2px dashed var(--right);outline-offset:2px}
   .node.pending{opacity:.5;border-style:dashed}
   aside{border-left:1px solid var(--line);background:var(--card);padding:14px;overflow:auto;display:flex;flex-direction:column;gap:12px}
   h3{font-size:11px;margin:0;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
@@ -65,6 +66,7 @@
     <div class="btns">
       <button id="bHide">ascunde nodul</button>
       <button id="bStar">★ bookmark</button>
+      <button id="bClaude">→ Claude</button>
       <button id="bSave">salvează</button>
       <select id="sessions"><option value="">— încarcă sesiune —</option></select>
     </div>
@@ -86,7 +88,7 @@ let state = null, cam = {x:0, y:0}, ws, nextId = 1, pendingCalls = 0;
 // ---------- WebSocket ----------
 function connect(){
   ws = new WebSocket(`ws://${location.host}`);
-  ws.onopen = () => $('#conn').innerHTML = 'ws: <b>conectat</b>';
+  ws.onopen = () => { $('#conn').innerHTML = 'ws: <b>conectat</b>'; ws.send(JSON.stringify({id: nextId++, cmd:'hello', params:{role:'human'}})); };
   ws.onclose = () => { $('#conn').innerHTML = 'ws: <b>deconectat</b>'; setTimeout(connect, 1500); };
   ws.onmessage = ev => {
     const m = JSON.parse(ev.data);
@@ -95,7 +97,7 @@ function connect(){
     if (m.state) { const prevActive = state?.active; state = m.state; if (state.active !== prevActive) cam = {x:0,y:0}; render(); }
   };
 }
-function send(cmd, params={}){ if (ws?.readyState !== 1) return; if (['step','sibling'].includes(cmd)) pendingCalls++; ws.send(JSON.stringify({id: nextId++, cmd, ...params})); }
+function send(cmd, params={}){ if (ws?.readyState !== 1) return; if (['step','sibling'].includes(cmd)) pendingCalls++; ws.send(JSON.stringify({id: nextId++, cmd, params})); }
 function toast(m, err){ const t=$('#toast'); t.textContent=m; t.className='toast show'+(err?' err':''); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'), err?2500:900); }
 
 // ---------- render ----------
@@ -113,7 +115,8 @@ function render(){
   const path = new Set(pathOf(state.active).map(n => n.id));
   for (const n of state.nodes) {
     const p = pos.get(n.id), el = document.createElement('div');
-    el.className = 'node' + (n.id===state.active?' active':'') + (n.hidden?' hidden':'') + (path.has(n.id)?' path':'') + (n.bookmarked?' star':'');
+    el.className = 'node' + (n.id===state.active?' active':'') + (n.hidden?' hidden':'') + (path.has(n.id)?' path':'') + (n.bookmarked?' star':'')
+      + (state.cursors?.some(c => c.key!==state.me && c.role!=='human' && c.active===n.id) ? ' other' : '');   // cursorul lui Claude (verde)
     el.textContent = n.parent_id===null ? (n.text.length>24 ? '…'+n.text.slice(-22) : n.text) : (n.text.trim() || '·');
     el.style.left = px(p)+'px'; el.style.top = py(p)+'px'; el.onclick = () => send('goto', {id:n.id}); tree.appendChild(el);
     if (n.parent_id !== null) { const q = pos.get(n.parent_id); const l = document.createElementNS('http://www.w3.org/2000/svg','line');
@@ -144,6 +147,7 @@ document.addEventListener('keydown', e => {
 });
 $('#bHide').onclick = () => send('hide');
 $('#bStar').onclick = () => send('bookmark',{bookmarked:!byId(state.active).bookmarked});
+$('#bClaude').onclick = () => { const c = state?.cursors?.find(c => c.key!==state.me && c.role!=='human'); c ? send('goto',{id:c.active}) : toast('Claude nu e conectat'); };
 $('#bSave').onclick = () => { send('save', {}); refreshSessions(); toast('salvat'); };
 $('#bNew').onclick = () => { const p = $('#prompt').value.trim(); if (p) send('new',{prompt:p}); };
 $('#sessions').onchange = e => { if (e.target.value) send('load',{name:e.target.value}); };

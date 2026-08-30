@@ -23,8 +23,10 @@ Tot ce nu încape pe stick-uri (salvare, model, temperatură, prompt de start,
 bookmark, ascundere) se face din UI-ul web sau din Claude Desktop prin MCP.
 
 Stick-ul stâng e izomorf cu arborele, care crește de jos în sus ca o plantă:
-**sus = copii, stânga/dreapta = siblingi, jos = părinte.** Există un singur
-nod activ („cursorul") și doar stick-ul stâng îl mișcă. Stick-ul drept nu
+**sus = copii, stânga/dreapta = siblingi, jos = părinte.** Fiecare client
+conectat (browserul tău, Claude prin MCP) are propriul cursor peste același
+arbore — al tău e mișcat doar de stick-ul stâng, al lui Claude se vede în
+UI cu altă culoare. Stick-ul drept nu
 atinge cursorul: e camera — face pan peste arbore ca să te uiți în jur.
 Camera urmărește singură cursorul; orice mișcare a stângului o aduce înapoi
 pe el.
@@ -95,10 +97,12 @@ Browser (gamepad + UI) ─────────────WS─────�
   nu cere URL public, OAuth sau bridge.
 - Ambii clienți văd același arbore, live — există un singur motor.
 - **Tool-urile MCP** = un controller virtual: `step` (cuvânt nou), `sibling`
-  (următorul/anteriorul, generând la nevoie), `up` (părinte), `path` (textul
-  căii curente), `save`/`load`, prompt de start, bookmark/hide. Util ca să
-  testezi motorul din Claude Desktop și pentru mod „co-pilot": Claude
-  explorează ramuri, tu decizi din controller.
+  (următorul/anteriorul, generând la nevoie), `up` (părinte), `goto`, `path`
+  (textul căii curente), `follow_human` (sari la cursorul omului),
+  `save`/`load`, prompt de start, bookmark/hide. Claude are **cursorul lui**
+  (fiecare răspuns îi spune și unde e omul), deci mod „co-pilot": Claude
+  explorează ramuri în paralel, tu decizi din controller; butonul „→ Claude"
+  din UI îți sare cursorul la al lui. Cursoarele sunt efemere (per conexiune).
 - **Browserul**: Gamepad API nativ. Controller **Logitech F310** cu
   comutatorul pe **X (XInput)** → mapare `standard` (axe 0/1 = stick stâng,
   axe 2/3 = stick drept).

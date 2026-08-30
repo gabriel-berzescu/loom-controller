@@ -17,8 +17,12 @@ Tastatură (fallback): `W A S D` / săgeți / `H` ascunde / `B` bookmark.
 ## Claude Desktop (MCP)
 
 `mcp-shim.js` e legat în `claude_desktop_config.json` ca serverul `loom`. Tool-uri:
-`step`, `sibling`, `up`, `goto`, `path`, `tree`, `hide`, `bookmark`, `settings`, `new`, `save`, `load`, `sessions`.
+`step`, `sibling`, `up`, `goto`, `follow_human`, `path`, `tree`, `hide`, `bookmark`, `settings`, `new`, `save`, `load`, `sessions`.
 Motorul trebuie să ruleze; altfel tool-urile răspund „motorul nu e pornit".
+
+Fiecare client (browser, Claude) are **propriul cursor** peste același arbore:
+Claude vede în fiecare răspuns și unde ești tu; cursorul lui apare în UI cu
+verde, iar „→ Claude" îți sare cursorul la al lui. Cursoarele sunt efemere.
 
 ## Fișiere
 

@@ -105,7 +105,7 @@
 
 <h2 id="controller">2. Controllerul</h2>
 <p><b>Doar cele 4 axe ale celor două stick-uri.</b> Fără butoane, fără L3/R3. Tot ce nu încape pe stick-uri (salvare, model, temperatură, prompt de start, bookmark, ascundere) se face din UI-ul web sau din Claude Desktop prin MCP.</p>
-<p>Stick-ul stâng e izomorf cu arborele, care crește de jos în sus ca o plantă: <b>sus = copii, stânga/dreapta = siblingi, jos = părinte.</b> Există un singur nod activ („cursorul") și doar stick-ul stâng îl mișcă. Stick-ul drept nu atinge cursorul: e camera — face pan peste arbore ca să te uiți în jur. Camera urmărește singură cursorul; orice mișcare a stângului o aduce înapoi pe el.</p>
+<p>Stick-ul stâng e izomorf cu arborele, care crește de jos în sus ca o plantă: <b>sus = copii, stânga/dreapta = siblingi, jos = părinte.</b> Fiecare client conectat (browserul tău, Claude prin MCP) are propriul cursor peste același arbore — al tău e mișcat doar de stick-ul stâng, al lui Claude se vede în UI cu altă culoare. Stick-ul drept nu atinge cursorul: e camera — face pan peste arbore ca să te uiți în jur. Camera urmărește singură cursorul; orice mișcare a stângului o aduce înapoi pe el.</p>
 
 <div class="grid2">
 <div class="card">
@@ -178,7 +178,7 @@ Browser (gamepad + UI) ─────────────WS─────�
   <li><b>Motorul</b> e un proces Node local, pornit manual (<code>node motor.js</code>). Deține arborele, vorbește cu Ollama (<code>localhost:11434</code> — browserul nu atinge Ollama direct), servește pagina web + WebSocket pe un port local și salvează/încarcă sesiunile ca JSON pe disc.</li>
   <li><b>Shim-ul MCP</b> e procesul stdio lansat de Claude Desktop din <code>claude_desktop_config.json</code>; doar traduce tool-urile în mesaje WebSocket către motor. Dacă motorul nu rulează, tool-urile răspund „motorul nu e pornit". stdio, nu HTTP/Custom Connector: pentru un tool local e singurul canal care nu cere URL public, OAuth sau bridge.</li>
   <li>Ambii clienți văd același arbore, live — există un singur motor.</li>
-  <li><b>Tool-urile MCP</b> = un controller virtual: <code>step</code> (cuvânt nou), <code>sibling</code> (următorul/anteriorul, generând la nevoie), <code>up</code> (părinte), <code>path</code> (textul căii curente), <code>save</code>/<code>load</code>, prompt de start, bookmark/hide. Util ca să testezi motorul din Claude Desktop și pentru mod „co-pilot": Claude explorează ramuri, tu decizi din controller.</li>
+  <li><b>Tool-urile MCP</b> = un controller virtual: <code>step</code> (cuvânt nou), <code>sibling</code> (următorul/anteriorul, generând la nevoie), <code>up</code> (părinte), <code>goto</code>, <code>path</code> (textul căii curente), <code>follow_human</code> (sari la cursorul omului), <code>save</code>/<code>load</code>, prompt de start, bookmark/hide. Claude are <b>cursorul lui</b> (fiecare răspuns îi spune și unde e omul), deci mod „co-pilot": Claude explorează ramuri în paralel, tu decizi din controller; butonul „→ Claude" din UI îți sare cursorul la al lui. Cursoarele sunt efemere (per conexiune).</li>
   <li><b>Browserul</b>: Gamepad API nativ. Controller <b>Logitech F310</b> cu comutatorul pe <b>X (XInput)</b> → mapare <code>standard</code> (axe 0/1 = stick stâng, axe 2/3 = stick drept).</li>
 </ul>
 <h3>Date</h3>
