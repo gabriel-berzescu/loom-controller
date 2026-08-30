@@ -51,6 +51,8 @@
   atâția, fără reîncercare), iar capul intră în primul sosit, ca să nu
   aștepți restul. Ordinea siblingilor = ordinea sosirii răspunsurilor. Deci stânga/dreapta are din start prin ce cycla.
   Ajungi la capătul listei și împingi în continuare → se mai generează unul.
+  Lista **nu se învârte în cerc** (fără wraparound) — capătul e capăt, ca să
+  aibă sens „împingi mai departe = cere unul nou".
   Împingi în sus din siblingul ales → generarea continuă de acolo → s-a
   născut o ramură nouă.
 - **Jos** → nimic (rezervat). Mersul la părinte e treaba stick-ului
@@ -94,7 +96,8 @@ loom-urile clasice pe paragrafe.
   5 call-uri scurte fac același lucru mai curat.
 
 ### Joystick dreapta — „navigatorul"
-- Stânga / dreapta → frate anterior / următor (doar prin ce există; nu generează).
+- Stânga / dreapta → frate anterior / următor (doar prin ce există; nu generează;
+  la capătul listei nu se întâmplă nimic — fără wraparound, ca la stângul).
 - Jos → coboară la părinte.
 - Sus → urcă în copilul „activ" (ultimul vizitat sau primul).
 - R3 (click) → nimic. Camera urmărește automat nodul activ, deci nu e
@@ -119,8 +122,6 @@ loom-urile clasice pe paragrafe.
   undo = scoți flag-ul; nu ștergem nimic din JSON).
 - **X** → bookmark / stea pe nod (nodurile bune se pierd ușor în multivers).
 - **Y** → colapsează/expandează subarborele.
-- **LB / RB** → schimbă modelul Ollama (multiverse cu voci diferite —
-  aceeași ramificare, modele diferite).
 - **LT / RT (analogice):** LT = lungimea L a completării (câte cuvinte per
   ramură), RT = numărul de ramuri N generate la un „branch".
 - **Start** → salvează snapshot; **Select/Back** → toggle overlay cu maparea.
@@ -140,8 +141,9 @@ loom-urile clasice pe paragrafe.
 > - **Generarea unui cuvânt** = un call la `/api/generate` cu `raw: true`,
 >   `num_predict` 10–20, temperatură > 0; motorul taie răspunsul după primul
 >   cuvânt complet (primul whitespace după text non-alb; whitespace-ul de
->   dinainte rămâne în nod). Siblingii = același
->   call de 5 ori, fiecare cu alt `seed` (salvat în nod → reproductibil).
+>   dinainte rămâne în nod). Un pas = **5 astfel de call-uri în total** (nu
+>   1 + 5): fiecare cu alt `seed` (salvat în nod → reproductibil), toate 5
+>   devin siblingi, iar capul intră în primul sosit.
 >   Testat 2026-08-15 că `raw: true` merge.
 
 ### Arhitectura aleasă: motor + două fețe
@@ -195,7 +197,9 @@ ramifică — ultimul după MVP, vezi §6), expuse ca tool-uri peste același ar
 ### Date
 - Nod = `{ id, parent_id, text, model, params (temp, seed),
   created_at, bookmarked, collapsed, hidden }`. Siblingii = copiii aceluiași părinte,
-  în ordinea creării.
+  în ordinea creării (= ordinea sosirii răspunsului). `bookmarked` /
+  `collapsed` / `hidden` rămân în model deși butoanele sunt parcate — se
+  setează din UI/MCP.
 - Arborele întreg = un JSON per „sesiune de loom", scris de motor pe disc.
   Format ideal: ceva compatibil / convertibil cu loom-urile existente
   (Loomsidian folosește JSON-ul propriu; merită o privire pentru interop).
@@ -207,12 +211,10 @@ ramifică — ultimul după MVP, vezi §6), expuse ca tool-uri peste același ar
   `vibrationActuator` în Chrome.) *Notă:* decizia „fără logprobs" e despre
   cum facem siblingii; nu ne oprește să cerem `logprobs` ca **metadata** pe
   nodul generat (Ollama le dă) — de asta depind și rumble-ul, și heatmap-ul.
-- **Mod „autopilot"**: ține A apăsat → loom-ul ramifică singur breadth-first
-  și tu doar navighezi prin ce a crescut.
+- **Mod „autopilot"**: pornit din UI/MCP (nu de pe controller) → loom-ul
+  ramifică singur breadth-first și tu doar navighezi prin ce a crescut.
 - **Heatmap pe ramuri**: colorează muchiile după logprob mediu (vezi nota de
   la rumble) — vezi din avion care ramuri sunt „probabile" și care sunt exotice.
-- **Două modele în duel**: LB/RB nu doar schimbă modelul, ci generează
-  aceeași ramificare cu ambele și le pune față în față.
 - **Mod prezentare/perfomance**: loom-ul pe proiector, tu cu controllerul
   wireless — text generat live ca instrument muzical.
 - **Import prompt de start** din fișier / clipboard (singurul moment în care
@@ -226,8 +228,13 @@ ramifică — ultimul după MVP, vezi §6), expuse ca tool-uri peste același ar
    continuu" când ții stick-ul împins? (Pe `gemma3:270m` eval-ul a fost
    ~5ms/token; e2b va fi mai lent — de măsurat.) Cu 5 siblingi per pas,
    costul unui pas e ~5 call-uri de 10–20 tokeni — probabil ok, dar de
-   măsurat; cele 5 pot rula în paralel. Dacă nu → pre-generăm în avans
-   (lookahead pe ramura activă cât timp stick-ul e neutru).
+   măsurat; cele 5 pot rula în paralel. Optimizare ieftină: cu streaming,
+   motorul poate închide call-ul imediat ce apare primul whitespace de după
+   cuvânt, fără să aștepte toți cei 10–20 de tokeni. Dacă tot nu ajunge →
+   pre-generăm în avans (lookahead: doar din nodul activ, doar dacă e frunză,
+   cât timp stick-ul e neutru). Nu contrazice regula „sus într-un nod cu copii
+   nu generează": copiii pre-generați sunt exact cei pe care i-ai fi primit
+   împingând în sus, deci sus intră în ei ca și cum i-ai fi cerut.
    Atenție și la **cold start**: primul call după idle a avut ~8s load —
    ținem modelul cald cu `keep_alive`.
 3. ~~**Cuvânt vs. token pe ecran**: unde exact tăiem?~~ Rezolvat — regula
@@ -249,8 +256,9 @@ ramifică — ultimul după MVP, vezi §6), expuse ca tool-uri peste același ar
    **exact ce a dat modelul**, inclusiv whitespace-ul/newline-ul dinainte;
    calea = nodurile lipite cap la cap (`join("")`). Dedup-ul și eticheta din
    arbore folosesc `text.trim()`.
-7. ~~**Cei „5 siblingi"**~~ Decis: **exact 5**, constantă fixă. (Nu mai există
-   RT/N — vezi decizia „doar stick-urile".)
+7. ~~**Cei „5 siblingi"**~~ Decis: **exact 5 cereri**, constantă fixă (după
+   dedup pot rămâne mai puțini — vezi §2). (Nu mai există RT/N — vezi decizia
+   „doar stick-urile".)
 8. **Deadzone & repeat-rate** pe stick-uri: cât de împins = „împins",
    la ce interval se repetă pasul (stânga/dreapta prin siblingi trebuie să se
    simtă ca un scroll bun, nu ca o mitralieră).
@@ -305,3 +313,10 @@ ascunde (flag `hidden`), nu șterge; rumble/heatmap pot cere logprobs ca metadat
 rămâne în nod, calea se lipește cu `""`; exact 5 siblingi, constantă; **doar
 cele două stick-uri, fără L3/R3** — toate butoanele sunt parcate, camera urmărește
 automat nodul activ, restul se face din UI/MCP.*
+
+*Revizie 5 (Claude, 2026-08-30): un pas = 5 call-uri în total, nu 1 + 5; listele
+de siblingi nu au wraparound (pe ambele stick-uri); lookahead-ul din §5.2 împăcat
+cu „sus nu generează dacă există copii" + streaming-ul ca optimizare; autopilot și
+duelul de modele nu mai depind de butoane — apoi decizie Gabriel: **un singur
+model**, scos duelul și LB/RB „schimbă modelul"; „exact 5" = 5 cereri, nu 5 rezultate
+garantate; flag-urile din nod rămân, setate din UI/MCP.*
