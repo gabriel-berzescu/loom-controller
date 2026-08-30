@@ -11,7 +11,8 @@
 - **Twist-ul nostru**: fără tastatură, fără mouse. Tot loop-ul de
   generare–explorare–selecție se face din controller, ca într-un joc.
   Textul devine ceva ce *pilotezi*, nu ceva ce scrii.
-- Motor: **Ollama** (local, gratuit, streaming).
+- Generare: **Ollama** (local, gratuit, streaming). *(Cuvântul „motor" e
+  rezervat în restul documentului pentru procesul Node care ține arborele.)*
 
 ## 2. Maparea controllerului
 
@@ -28,7 +29,7 @@
 > noduri reale, generate fiecare cu un call scurt la Ollama
 > (`num_predict` ≈ 10–20, cât să nu taie cuvântul; motorul taie textul după
 > primul cuvânt complet). Fără ierarhie probabil/improbabil — ordinea
-> siblingilor e ordinea în care au fost generați. Simplu, și fiecare nod
+> siblingilor e ordinea în care au sosit răspunsurile. Simplu, și fiecare nod
 > e ceva ce poți continua direct.
 
 ### Joystick stânga — „capul de scriere" (designul ales)
@@ -45,10 +46,10 @@
   arborele cu copii de care nu ai cerut.
 - **Stânga / dreapta** → te muți pe un sibling (alt cuvânt, aceeași
   poziție). *La fiecare* pas în sus motorul generează **5 siblingi deodată**
-  (5 call-uri scurte în paralel, cu temperatură și `seed` diferit per
-  sibling, dedup pe cuvinte identice — dacă rămân mai puțin de 5, rămân
+  (5 call-uri scurte în paralel, aceeași temperatură (setare globală, > 0),
+  doar `seed`-ul diferă per sibling; dedup pe cuvinte identice — dacă rămân mai puțin de 5, rămân
   atâția, fără reîncercare), iar capul intră în primul sosit, ca să nu
-  aștepți restul. Deci stânga/dreapta are din start prin ce cycla.
+  aștepți restul. Ordinea siblingilor = ordinea sosirii răspunsurilor. Deci stânga/dreapta are din start prin ce cycla.
   Ajungi la capătul listei și împingi în continuare → se mai generează unul.
   Împingi în sus din siblingul ales → generarea continuă de acolo → s-a
   născut o ramură nouă.
@@ -56,7 +57,7 @@
   drept — vezi decizia „un singur cursor" mai jos.
   *Excepție temporară, în MVP:* cât timp stick-ul drept nu e încă legat,
   jos = coboară la părinte, ca să poți reveni. Se scoate când intră dreptul.
-- **L3 (click)** → rezervat. (Bookmark-ul e pe X, nu-l dublăm aici.)
+- **L3 (click)** → nimic. Fără click-uri pe stick-uri (vezi decizia „doar axele").
 
 > **Decizie: un singur cursor (MVP).** Capul de scriere și cursorul de
 > navigare sunt același lucru — ambele stick-uri mișcă același nod activ,
@@ -67,22 +68,23 @@
 >
 > *Upgrade ulterior (Varianta 2, parcat):* două cursoare separate — capul
 > de scriere (stick stâng) și un cursor de explorare/camera (stick drept),
-> cu R3 = „teleportează capul de scriere la cursorul de explorare".
+> cu „teleportează capul de scriere la cursorul de explorare" — fără click
+> pe stick, deci de găsit un gest din axe (ex. ambele stick-uri împinse în
+> aceeași direcție).
 > Util când arborele crește și vrei să recitești o ramură fără să-ți muți
 > punctul de creștere. Cere două highlight-uri vizuale distincte.
-> În varianta asta R3 își pierde rolul de „centrează view-ul" — camera
-> urmărește oricum cursorul de explorare, deci centrarea devine automată.
+> Camera urmărește cursorul de explorare, deci centrarea rămâne automată.
 
-Granularitatea = **cuvânt** (generăm tokeni până la graniță de whitespace),
+Granularitatea = **cuvânt** (cerem 10–20 de tokeni și tăiem la prima graniță
+de whitespace),
 nu chunk-uri — ăsta e un loom token-level/word-level, mai fin decât
 loom-urile clasice pe paragrafe.
 
 #### Variante vechi, păstrate ca parcare de idei
 - *Pedală de accelerație:* doar axa Y = viteză de generare.
-- *Temperatura pe axa X* în timp ce textul curge — LT e deja luat
-  (lungimea L), deci temperatura rămâne deocamdată o setare din UI/MCP,
-  nu de pe controller. Candidat viitor: D-pad sus/jos, dacă istoricul de
-  navigare se mută altundeva.
+- *Temperatura pe axa X* în timp ce textul curge — axa X e luată de
+  siblingi, iar butoane nu vrem; temperatura rămâne o setare din UI/MCP,
+  nu de pe controller.
 - *Token surfing radial:* top-k tokeni așezați radial, unghiul stick-ului
   alege — înlocuit de stânga/dreapta prin siblingi, care e același concept
   dar mapat pe geometria arborelui.
@@ -95,15 +97,26 @@ loom-urile clasice pe paragrafe.
 - Stânga / dreapta → frate anterior / următor (doar prin ce există; nu generează).
 - Jos → coboară la părinte.
 - Sus → urcă în copilul „activ" (ultimul vizitat sau primul).
-- R3 (click) → centrează view-ul pe nodul curent / zoom fit.
+- R3 (click) → nimic. Camera urmărește automat nodul activ, deci nu e
+  nevoie de „centrează".
 
-### Butoane (de negociat)
+> **Decizie (Gabriel, 2026-08-30): cât mai puține butoane — ideal doar cele
+> două stick-uri.** Tot ce e mai jos e *parcat*: idei de butoane, nu mapare.
+> Ce nu încape pe stick-uri (salvare, schimbat modelul, temperatură) se face
+> din UI-ul web sau din Claude Desktop prin MCP, nu de pe controller.
+> Nici L3/R3: **doar cele 4 axe.** Camera urmărește singură nodul activ.
+
+### Butoane (parcate — nu fac parte din design)
 - **A** → „ramifică aici": generează N completări noi din nodul curent.
   Nu contrazice „un cuvânt = un nod": fiecare completare e un *lanț* de
   noduri-cuvânt (o ramură de lungime L), iar A le crește pe toate N deodată.
   Diferența față de stick-ul stâng stânga/dreapta: acolo compari *un cuvânt*,
-  aici compari *fraze întregi*.
-- **B** → șterge / ascunde ramura curentă (cu undo!).
+  aici compari *fraze întregi*. Fiecare lanț vine dintr-un singur call lung
+  (`num_predict` ≈ L cuvinte), spart apoi în noduri-cuvânt; nodurile din lanț
+  **nu** primesc automat cei 5 siblingi — aceia apar doar dacă ceri explicit
+  (stânga/dreapta la capătul listei), ca la orice ramură revizitată.
+- **B** → ascunde ramura curentă (soft-delete: flag `hidden` pe nod, deci
+  undo = scoți flag-ul; nu ștergem nimic din JSON).
 - **X** → bookmark / stea pe nod (nodurile bune se pierd ușor în multivers).
 - **Y** → colapsează/expandează subarborele.
 - **LB / RB** → schimbă modelul Ollama (multiverse cu voci diferite —
@@ -126,7 +139,8 @@ loom-urile clasice pe paragrafe.
 >   perfect pentru teste rapide de integrare).
 > - **Generarea unui cuvânt** = un call la `/api/generate` cu `raw: true`,
 >   `num_predict` 10–20, temperatură > 0; motorul taie răspunsul după primul
->   cuvânt complet (primul whitespace după text non-alb). Siblingii = același
+>   cuvânt complet (primul whitespace după text non-alb; whitespace-ul de
+>   dinainte rămâne în nod). Siblingii = același
 >   call de 5 ori, fiecare cu alt `seed` (salvat în nod → reproductibil).
 >   Testat 2026-08-15 că `raw: true` merge.
 
@@ -161,7 +175,7 @@ Browser (gamepad + UI) ─────────────WS─────�
 
 Claude Desktop ca **„controller virtual"**: aceleași operații ca stick-urile
 (pas înainte, sari pe siblingi, coboară la părinte, citește calea curentă,
-ramifică), expuse ca tool-uri peste același arbore. Util pentru:
+ramifică — ultimul după MVP, vezi §6), expuse ca tool-uri peste același arbore. Util pentru:
 - testat motorul *înainte* să existe vreun UI sau gamepad;
 - mod „co-pilot": Claude explorează ramuri, tu decizi din controller.
 
@@ -180,7 +194,7 @@ ramifică), expuse ca tool-uri peste același arbore. Util pentru:
 
 ### Date
 - Nod = `{ id, parent_id, text, model, params (temp, seed),
-  created_at, bookmarked, collapsed }`. Siblingii = copiii aceluiași părinte,
+  created_at, bookmarked, collapsed, hidden }`. Siblingii = copiii aceluiași părinte,
   în ordinea creării.
 - Arborele întreg = un JSON per „sesiune de loom", scris de motor pe disc.
   Format ideal: ceva compatibil / convertibil cu loom-urile existente
@@ -190,11 +204,13 @@ ramifică), expuse ca tool-uri peste același arbore. Util pentru:
 
 - **Rumble/vibrație** ca feedback: vibrează proporțional cu perplexitatea /
   surpriza tokenului generat. Simți când modelul „ezită". (Gamepad API are
-  `vibrationActuator` în Chrome.)
+  `vibrationActuator` în Chrome.) *Notă:* decizia „fără logprobs" e despre
+  cum facem siblingii; nu ne oprește să cerem `logprobs` ca **metadata** pe
+  nodul generat (Ollama le dă) — de asta depind și rumble-ul, și heatmap-ul.
 - **Mod „autopilot"**: ține A apăsat → loom-ul ramifică singur breadth-first
   și tu doar navighezi prin ce a crescut.
-- **Heatmap pe ramuri**: colorează muchiile după logprob mediu — vezi din
-  avion care ramuri sunt „probabile" și care sunt exotice.
+- **Heatmap pe ramuri**: colorează muchiile după logprob mediu (vezi nota de
+  la rumble) — vezi din avion care ramuri sunt „probabile" și care sunt exotice.
 - **Două modele în duel**: LB/RB nu doar schimbă modelul, ci generează
   aceeași ramificare cu ambele și le pune față în față.
 - **Mod prezentare/perfomance**: loom-ul pe proiector, tu cu controllerul
@@ -215,8 +231,9 @@ ramifică), expuse ca tool-uri peste același arbore. Util pentru:
    Atenție și la **cold start**: primul call după idle a avut ~8s load —
    ținem modelul cald cu `keep_alive`.
 3. ~~**Cuvânt vs. token pe ecran**: unde exact tăiem?~~ Rezolvat — regula
-   de tăiere din motor: ia răspunsul, sari peste whitespace-ul de la
-   început, oprește-te la primul whitespace de după — ce rămâne e cuvântul.
+   de tăiere din motor: ia răspunsul, treci *peste* whitespace-ul de la
+   început (îl păstrezi în nod, vezi §5.6), oprește-te la primul whitespace
+   de după — ce ai până acolo e nodul.
    Dacă în 10–20 de tokeni nu apare niciun whitespace (cuvânt lung, URL),
    accepți ce ai. Punctuația lipită („was,") rămâne parte din cuvânt.
 4. **Base model vs. instruct?** Pentru loom în stil Janus, un base model
@@ -228,7 +245,13 @@ ramifică), expuse ca tool-uri peste același arbore. Util pentru:
    vertical — panoul de citire (§6.5) e cel care arată textul ca text; arborele
    arată doar cuvintele-nod stivuite. De decis spacing-ul și cum colapsăm
    ramurile moarte vizual.
-6. **Deadzone & repeat-rate** pe stick-uri: cât de împins = „împins",
+6. ~~**Whitespace-ul din nod**~~ Decis (Gabriel, 2026-08-30): nodul ține
+   **exact ce a dat modelul**, inclusiv whitespace-ul/newline-ul dinainte;
+   calea = nodurile lipite cap la cap (`join("")`). Dedup-ul și eticheta din
+   arbore folosesc `text.trim()`.
+7. ~~**Cei „5 siblingi"**~~ Decis: **exact 5**, constantă fixă. (Nu mai există
+   RT/N — vezi decizia „doar stick-urile".)
+8. **Deadzone & repeat-rate** pe stick-uri: cât de împins = „împins",
    la ce interval se repetă pasul (stânga/dreapta prin siblingi trebuie să se
    simtă ca un scroll bun, nu ca o mitralieră).
 
@@ -271,3 +294,14 @@ existenți intră în copilul activ, nu generează; „5 siblingi" e la fiecare 
 în paralel, cu seed per sibling, fără reîncercare la dedup; L3 nu mai dublează
 bookmark-ul de pe X; temperatura nu mai concurează cu LT (rămâne setare);
 §5.3 marcat rezolvat.*
+
+*Revizie 3 (Claude, 2026-08-30): „motor" = doar procesul Node (Ollama = generare);
+siblingii diferă doar prin seed, temperatura e globală, ordinea = ordinea sosirii;
+lanțurile de la A vin dintr-un call lung și nu primesc automat 5 siblingi; B =
+ascunde (flag `hidden`), nu șterge; rumble/heatmap pot cere logprobs ca metadata;
+`branch` în MCP abia după MVP; două întrebări noi în §5 (whitespace în nod, 5 vs. N).*
+
+*Revizie 4 (decizii Gabriel, 2026-08-30): whitespace-ul dinaintea cuvântului
+rămâne în nod, calea se lipește cu `""`; exact 5 siblingi, constantă; **doar
+cele două stick-uri, fără L3/R3** — toate butoanele sunt parcate, camera urmărește
+automat nodul activ, restul se face din UI/MCP.*
