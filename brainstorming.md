@@ -18,7 +18,9 @@
 > **Decizie (Gabriel):** stick-ul stâng e „capul de scriere" — mișcarea lui
 > e izomorfă cu geometria arborelui. **Sus = adâncime (copii), stânga/dreapta
 > = lățime (siblingi), jos = părinte.** Arborele crește de jos în sus, ca o
-> plantă. Stick-ul stâng *crește* arborele, stick-ul drept *explorează* arborele.
+> plantă. Stick-ul stâng *crește* arborele, stick-ul drept *explorează* arborele
+> (aceeași geometrie pe ambele; „jos = părinte" e executat doar de dreptul,
+> vezi „un singur cursor").
 > *(2026-08-30: rotit cu 90° trigonometric față de varianta inițială, care
 > avea dreapta = copii, sus/jos = siblingi, stânga = părinte.)*
 
@@ -36,17 +38,25 @@
   nou, capul de scriere urcă în el. Ții împins → curge textul.
   (Deflexia poate controla viteza: împins ușor = un cuvânt per impuls,
   împins la maxim = flux continuu.)
+  *Dacă nodul are deja copii* (te-ai întors pe o ramură veche), sus **nu
+  generează**, ci intră în copilul activ (ultimul vizitat sau primul) —
+  exact ca stick-ul drept. Alternative noi se cer explicit, cu
+  stânga/dreapta la capătul listei. Altfel fiecare revenire ar umple
+  arborele cu copii de care nu ai cerut.
 - **Stânga / dreapta** → te muți pe un sibling (alt cuvânt, aceeași
-  poziție). La primul pas în sus motorul generează **5 siblingi deodată**
-  (5 call-uri scurte, cu temperatură, dedup pe cuvinte identice), deci
-  stânga/dreapta are din start prin ce cycla. Ajungi la capătul listei și
-  împingi în continuare → se mai generează unul. Împingi în sus din siblingul
-  ales → generarea continuă de acolo → s-a născut o ramură nouă.
+  poziție). *La fiecare* pas în sus motorul generează **5 siblingi deodată**
+  (5 call-uri scurte în paralel, cu temperatură și `seed` diferit per
+  sibling, dedup pe cuvinte identice — dacă rămân mai puțin de 5, rămân
+  atâția, fără reîncercare), iar capul intră în primul sosit, ca să nu
+  aștepți restul. Deci stânga/dreapta are din start prin ce cycla.
+  Ajungi la capătul listei și împingi în continuare → se mai generează unul.
+  Împingi în sus din siblingul ales → generarea continuă de acolo → s-a
+  născut o ramură nouă.
 - **Jos** → nimic (rezervat). Mersul la părinte e treaba stick-ului
   drept — vezi decizia „un singur cursor" mai jos.
   *Excepție temporară, în MVP:* cât timp stick-ul drept nu e încă legat,
   jos = coboară la părinte, ca să poți reveni. Se scoate când intră dreptul.
-- **L3 (click)** → de rezervat (poate: comite/bookmark cuvântul curent).
+- **L3 (click)** → rezervat. (Bookmark-ul e pe X, nu-l dublăm aici.)
 
 > **Decizie: un singur cursor (MVP).** Capul de scriere și cursorul de
 > navigare sunt același lucru — ambele stick-uri mișcă același nod activ,
@@ -69,8 +79,10 @@ loom-urile clasice pe paragrafe.
 
 #### Variante vechi, păstrate ca parcare de idei
 - *Pedală de accelerație:* doar axa Y = viteză de generare.
-- *Temperatura pe axa X* în timp ce textul curge — ar putea reveni pe
-  alt control (ex. LT analogic = temperatură?).
+- *Temperatura pe axa X* în timp ce textul curge — LT e deja luat
+  (lungimea L), deci temperatura rămâne deocamdată o setare din UI/MCP,
+  nu de pe controller. Candidat viitor: D-pad sus/jos, dacă istoricul de
+  navigare se mută altundeva.
 - *Token surfing radial:* top-k tokeni așezați radial, unghiul stick-ului
   alege — înlocuit de stânga/dreapta prin siblingi, care e același concept
   dar mapat pe geometria arborelui.
@@ -115,7 +127,8 @@ loom-urile clasice pe paragrafe.
 > - **Generarea unui cuvânt** = un call la `/api/generate` cu `raw: true`,
 >   `num_predict` 10–20, temperatură > 0; motorul taie răspunsul după primul
 >   cuvânt complet (primul whitespace după text non-alb). Siblingii = același
->   call de 5 ori (sau `seed` diferit). Testat 2026-08-15 că `raw: true` merge.
+>   call de 5 ori, fiecare cu alt `seed` (salvat în nod → reproductibil).
+>   Testat 2026-08-15 că `raw: true` merge.
 
 ### Arhitectura aleasă: motor + două fețe
 
@@ -201,9 +214,8 @@ ramifică), expuse ca tool-uri peste același arbore. Util pentru:
    (lookahead pe ramura activă cât timp stick-ul e neutru).
    Atenție și la **cold start**: primul call după idle a avut ~8s load —
    ținem modelul cald cu `keep_alive`.
-3. **Cuvânt vs. token pe ecran**: generăm token-level dar afișăm/nodăm la
-   graniță de cuvânt — unde exact tăiem (whitespace? punctuație?).
-   Regula de tăiere din motor: ia răspunsul, sari peste whitespace-ul de la
+3. ~~**Cuvânt vs. token pe ecran**: unde exact tăiem?~~ Rezolvat — regula
+   de tăiere din motor: ia răspunsul, sari peste whitespace-ul de la
    început, oprește-te la primul whitespace de după — ce rămâne e cuvântul.
    Dacă în 10–20 de tokeni nu apare niciun whitespace (cuvânt lung, URL),
    accepți ce ai. Punctuația lipită („was,") rămâne parte din cuvânt.
@@ -253,3 +265,9 @@ MVP reordonat cu motorul și MCP-ul primele. Apoi, decizii Gabriel în aceeași 
 motorul pornit manual (MCP = shim), fără logprobs — siblingi reali din 5 call-uri
 scurte, fără ordine pe probabilitate; stick-urile rotite 90° trigonometric
 (sus = copii, stânga/dreapta = siblingi, jos = părinte), arborele crește în sus.*
+
+*Revizie 2 (Claude, 2026-08-30): sus pe stick-ul stâng într-un nod cu copii
+existenți intră în copilul activ, nu generează; „5 siblingi" e la fiecare pas,
+în paralel, cu seed per sibling, fără reîncercare la dedup; L3 nu mai dublează
+bookmark-ul de pe X; temperatura nu mai concurează cu LT (rămâne setare);
+§5.3 marcat rezolvat.*
