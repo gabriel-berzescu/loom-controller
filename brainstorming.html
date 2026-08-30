@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>loom-controller</title>
+<style>
+  :root{
+    --bg:#f6f4ee; --fg:#1d1d1b; --muted:#6b6860; --line:#d9d5c9; --card:#fffdf8;
+    --accent:#c2410c; --accent-soft:#fde7d7; --left:#1d4ed8; --left-soft:#dbe6ff;
+    --right:#047857; --right-soft:#d1fae5; --hidden:#b8b3a6;
+    --mono:ui-monospace,"Cascadia Code",Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+    --bg:#15161a; --fg:#ebe8e0; --muted:#9a968c; --line:#33353c; --card:#1e2026;
+    --accent:#fb923c; --accent-soft:#3b2416; --left:#93b4ff; --left-soft:#1c2a4d;
+    --right:#5ee0b0; --right-soft:#123529; --hidden:#5c5a55;
+  }}
+  :root[data-theme="dark"]{
+    --bg:#15161a; --fg:#ebe8e0; --muted:#9a968c; --line:#33353c; --card:#1e2026;
+    --accent:#fb923c; --accent-soft:#3b2416; --left:#93b4ff; --left-soft:#1c2a4d;
+    --right:#5ee0b0; --right-soft:#123529; --hidden:#5c5a55;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,Segoe UI,Roboto,sans-serif}
+  .wrap{display:grid;grid-template-columns:220px minmax(0,1fr);max-width:1180px;margin:0 auto;gap:32px;padding:32px 24px}
+  nav{position:sticky;top:24px;align-self:start;font-size:14px}
+  nav a{display:block;color:var(--muted);text-decoration:none;padding:5px 10px;border-left:2px solid transparent}
+  nav a.on,nav a:hover{color:var(--fg);border-color:var(--accent)}
+  h1{font-size:30px;margin:0 0 6px;letter-spacing:-.02em}
+  h2{font-size:20px;margin:44px 0 12px;padding-top:12px;border-top:1px solid var(--line)}
+  h3{font-size:15px;margin:22px 0 8px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  p,li{max-width:70ch}
+  blockquote{margin:0 0 20px;padding:12px 16px;border-left:3px solid var(--accent);background:var(--card);color:var(--muted)}
+  code{font:13px var(--mono);background:var(--card);border:1px solid var(--line);padding:1px 5px;border-radius:4px}
+  pre{font:13px/1.45 var(--mono);background:var(--card);border:1px solid var(--line);padding:14px;border-radius:8px;overflow-x:auto}
+  .tag{display:inline-block;font:12px var(--mono);padding:1px 7px;border-radius:99px;margin-right:4px}
+  .L{background:var(--left-soft);color:var(--left)} .R{background:var(--right-soft);color:var(--right)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:12px 0}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+  .stick{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;align-items:start}
+  .stick b{font:13px var(--mono);white-space:nowrap}
+  details summary{cursor:pointer;color:var(--muted)}
+  footer{margin-top:60px;color:var(--muted);font-size:13px}
+
+  /* ---- simulator ---- */
+  .sim{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:16px 0}
+  .sim-top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .pad{display:flex;gap:18px;align-items:center;font-size:13px;color:var(--muted)}
+  .stk{width:64px;height:64px;border-radius:50%;border:2px solid var(--line);position:relative;background:var(--bg)}
+  .stk i{position:absolute;left:50%;top:50%;width:22px;height:22px;margin:-11px;border-radius:50%;background:var(--muted);transition:transform .05s}
+  .stk.L i{background:var(--left)} .stk.R i{background:var(--right)}
+  .status{font:12px var(--mono);color:var(--muted)}
+  .status b{color:var(--accent)}
+  .sim-body{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px}
+  @media (max-width:800px){.sim-body{grid-template-columns:1fr}.wrap{grid-template-columns:1fr}nav{position:static;display:flex;flex-wrap:wrap}}
+  .tree{position:relative;height:380px;overflow:hidden;border:1px dashed var(--line);border-radius:8px;background:
+    repeating-linear-gradient(0deg,transparent 0 39px,var(--line) 39px 40px)}
+  .tree svg{position:absolute;inset:0;width:100%;height:100%}
+  .node{position:absolute;transform:translate(-50%,-50%);font:13px var(--mono);padding:3px 8px;border-radius:6px;
+    background:var(--bg);border:1px solid var(--line);white-space:pre;transition:left .18s,top .18s,opacity .18s}
+  .node.path{border-color:var(--fg)}
+  .node.active{background:var(--accent);color:#fff;border-color:var(--accent);z-index:2}
+  .node.hidden{opacity:.35;text-decoration:line-through;color:var(--hidden)}
+  .node.pending{opacity:.5;border-style:dashed}
+  .read{font-size:15px;line-height:1.6}
+  .read .cur{background:var(--accent-soft);color:var(--accent);border-radius:3px;padding:0 2px}
+  .sibs{margin-top:10px;font:13px var(--mono)}
+  .sibs span{display:inline-block;padding:1px 6px;margin:2px;border:1px solid var(--line);border-radius:5px}
+  .sibs span.cur{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .sibs span.hid{opacity:.4;text-decoration:line-through}
+  .keys{font-size:12px;color:var(--muted);margin-top:8px}
+  .keys kbd{font:11px var(--mono);border:1px solid var(--line);border-radius:4px;padding:0 4px;background:var(--bg)}
+  .btns{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  button{font:13px system-ui;padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
+  button:hover{border-color:var(--fg)}
+  .toast{position:absolute;right:10px;top:10px;font:12px var(--mono);background:var(--accent);color:#fff;padding:3px 8px;border-radius:6px;opacity:0;transition:opacity .2s}
+  .toast.show{opacity:1}
+  label.set{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-top:6px}
+  input[type=range]{flex:1}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav id="nav">
+  <a href="#concept">1 · Conceptul</a>
+  <a href="#controller">2 · Controllerul</a>
+  <a href="#sim">▶ Simulator</a>
+  <a href="#gen">3 · Generarea</a>
+  <a href="#arh">4 · Arhitectura</a>
+  <a href="#ui">5 · UI-ul</a>
+  <a href="#open">6 · De măsurat</a>
+</nav>
+<main>
+<h1>loom-controller</h1>
+<blockquote>Un loom (arbore de completări LLM, în tradiția Janus / cyborgiști) controlat în întregime dintr-un gamepad Logitech. Ollama generează local, joystick-ul stâng scrie, joystick-ul drept plimbă camera peste copacul de posibilități.</blockquote>
+
+<h2 id="concept">1. Conceptul</h2>
+<ul>
+  <li><b>Loom</b> = textul nu e liniar, ci un arbore: din orice punct poți genera continuări alternative, le compari, alegi una, continui, revii.</li>
+  <li><b>Twist-ul nostru</b>: fără tastatură, fără mouse. Tot loop-ul de generare–explorare–selecție se face din controller, ca într-un joc. Textul devine ceva ce <i>pilotezi</i>, nu ceva ce scrii.</li>
+  <li>Generare: <b>Ollama</b> (local, streaming). Cuvântul „motor" înseamnă în tot documentul procesul Node care ține arborele.</li>
+  <li>Granularitate = <b>cuvânt</b>: un nod = un cuvânt. Loom token-level, mai fin decât loom-urile clasice pe paragrafe.</li>
+</ul>
+
+<h2 id="controller">2. Controllerul</h2>
+<p><b>Doar cele 4 axe ale celor două stick-uri.</b> Fără butoane, fără L3/R3. Tot ce nu încape pe stick-uri (salvare, model, temperatură, prompt de start, bookmark, ascundere) se face din UI-ul web sau din Claude Desktop prin MCP.</p>
+<p>Stick-ul stâng e izomorf cu arborele, care crește de jos în sus ca o plantă: <b>sus = copii, stânga/dreapta = siblingi, jos = părinte.</b> Există un singur nod activ („cursorul") și doar stick-ul stâng îl mișcă. Stick-ul drept nu atinge cursorul: e camera — face pan peste arbore ca să te uiți în jur. Camera urmărește singură cursorul; orice mișcare a stângului o aduce înapoi pe el.</p>
+
+<div class="grid2">
+<div class="card">
+  <h3><span class="tag L">stick stâng</span> capul de scriere</h3>
+  <div class="stick">
+    <b>neutru</b><span>nimic.</span>
+    <b>sus</b><span>generează un cuvânt nou: un nod copil, cursorul intră în el. Ții împins → curge textul (deflexia = viteza: ușor = un cuvânt per impuls, la maxim = flux continuu). <i>Dacă nodul are deja copii vizibili</i>, sus <b>nu generează</b>, ci intră în copilul activ (ultimul vizitat sau primul). Alternative noi se cer explicit, cu stânga/dreapta la capătul listei; altfel fiecare revenire ar umple arborele cu copii neceruți.</span>
+    <b>stânga / dreapta</b><span>te muți pe un sibling (alt cuvânt, aceeași poziție). La fiecare pas în sus care generează, motorul face <b>5 siblingi deodată</b> (5 call-uri scurte în paralel; capul intră în primul sosit, restul se așază în ordinea sosirii), deci stânga/dreapta are din start prin ce te plimba. Lista <b>nu se învârte în cerc</b>: capătul e capăt, iar dacă împingi mai departe la capăt → se mai generează un sibling. Împingi în sus din siblingul ales → generarea continuă de acolo → o ramură nouă.</span>
+    <b>jos</b><span>părinte.</span>
+  </div>
+</div>
+<div class="card">
+  <h3><span class="tag R">stick drept</span> camera</h3>
+  <p style="color:var(--muted);margin-top:0">Nu mișcă cursorul, nu generează nimic.</p>
+  <div class="stick">
+    <b>orice direcție</b><span>pan peste arbore în direcția aia (deflexia = viteza). Lași stick-ul → camera rămâne unde ai dus-o, până la următoarea mișcare a stângului, când sare înapoi pe cursor.</span>
+  </div>
+</div>
+</div>
+
+<h2 id="sim">▶ Simulator — încearcă regulile</h2>
+<p>Aceleași reguli de mai sus, cu cuvinte false în loc de Ollama (fiecare „call" durează câteva sute de ms, ca să se vadă „primul sosit"). Conectează un F310 (switch pe X) și mișcă stick-urile, sau folosește tastatura.</p>
+<div class="sim" id="simbox">
+  <div class="toast" id="toast"></div>
+  <div class="sim-top">
+    <div class="pad">
+      <div><div class="stk L" id="stkL"><i></i></div><div style="text-align:center">stâng</div></div>
+      <div><div class="stk R" id="stkR"><i></i></div><div style="text-align:center">drept</div></div>
+    </div>
+    <div class="status" id="status">gamepad: <b>niciunul</b> — tastatură activă</div>
+  </div>
+  <div class="sim-body">
+    <div>
+      <div class="tree" id="tree"><svg id="edges"></svg></div>
+      <div class="keys">
+        <span class="tag L">stâng</span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> &nbsp;
+        <span class="tag R">drept</span><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> (ține apăsat = pan) &nbsp;
+        <kbd>H</kbd> ascunde nodul (din „UI") &nbsp; <kbd>R</kbd> reset
+      </div>
+      <label class="set">latență call (ms) <input type="range" id="lat" min="0" max="1500" value="500"><span id="latv">500</span></label>
+    </div>
+    <div>
+      <h3 style="margin-top:0">panou de citire</h3>
+      <div class="read" id="read"></div>
+      <div class="sibs" id="sibs"></div>
+      <div class="btns">
+        <button id="bHide">ascunde nodul (UI/MCP)</button>
+        <button id="bUnhide">arată toți</button>
+        <button id="bReset">reset</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h2 id="gen">3. Generarea</h2>
+<ul>
+  <li>Un cuvânt = un call la <code>/api/generate</code> cu <code>raw: true</code>, <code>num_predict</code> 10–20, temperatură &gt; 0 (setare globală, din UI/MCP). Siblingii diferă doar prin <code>seed</code> (salvat în nod → reproductibil).</li>
+  <li><b>Tăierea:</b> treci <i>peste</i> whitespace-ul de la începutul răspunsului (îl păstrezi în nod), oprește-te la primul whitespace de după — ce ai până acolo e nodul. Punctuația lipită („was,") rămâne parte din cuvânt. Dacă nu apare niciun whitespace, accepți ce ai. Cu streaming, motorul închide call-ul imediat ce apare whitespace-ul de după cuvânt.</li>
+  <li>Nodul ține <b>exact ce a dat modelul</b>, inclusiv whitespace-ul/newline-ul dinainte; textul căii = nodurile lipite cap la cap (<code>join("")</code>).</li>
+  <li><b>Dedup</b> pe <code>text.trim()</code>: se păstrează primul sosit; dacă din 5 rămân mai puțin, rămân atâția, fără reîncercare. Același lucru la „+1 la capătul listei": dacă iese un dublu, nu apare nimic, UI-ul semnalează scurt. Siblingii ascunși contează la dedup.</li>
+  <li><b>Fără logprobs</b> — alternativele sunt toate noduri reale, fără ordine pe probabilitate.</li>
+  <li>Un singur model o dată: <code>gemma4:e2b</code> (principal), <code>gemma3:270m</code> pentru teste rapide. Modelul se ține cald cu <code>keep_alive</code>.</li>
+</ul>
+
+<h2 id="arh">4. Arhitectura</h2>
+<pre>Claude Desktop ──stdio──▶ mcp-shim.js ──WS──▶ ┐
+                                              ├─ motor loom (Node, pornit manual)
+Browser (gamepad + UI) ─────────────WS──────▶ ┘        arborele · Ollama · JSON pe disc</pre>
+<ul>
+  <li><b>Motorul</b> e un proces Node local, pornit manual (<code>node motor.js</code>). Deține arborele, vorbește cu Ollama (<code>localhost:11434</code> — browserul nu atinge Ollama direct), servește pagina web + WebSocket pe un port local și salvează/încarcă sesiunile ca JSON pe disc.</li>
+  <li><b>Shim-ul MCP</b> e procesul stdio lansat de Claude Desktop din <code>claude_desktop_config.json</code>; doar traduce tool-urile în mesaje WebSocket către motor. Dacă motorul nu rulează, tool-urile răspund „motorul nu e pornit". stdio, nu HTTP/Custom Connector: pentru un tool local e singurul canal care nu cere URL public, OAuth sau bridge.</li>
+  <li>Ambii clienți văd același arbore, live — există un singur motor.</li>
+  <li><b>Tool-urile MCP</b> = un controller virtual: <code>step</code> (cuvânt nou), <code>sibling</code> (următorul/anteriorul, generând la nevoie), <code>up</code> (părinte), <code>path</code> (textul căii curente), <code>save</code>/<code>load</code>, prompt de start, bookmark/hide. Util ca să testezi motorul din Claude Desktop și pentru mod „co-pilot": Claude explorează ramuri, tu decizi din controller.</li>
+  <li><b>Browserul</b>: Gamepad API nativ. Controller <b>Logitech F310</b> cu comutatorul pe <b>X (XInput)</b> → mapare <code>standard</code> (axe 0/1 = stick stâng, axe 2/3 = stick drept).</li>
+</ul>
+<h3>Date</h3>
+<ul>
+  <li>Nod = <code>{ id, parent_id, text, model, params (temp, seed), created_at, bookmarked, hidden }</code>. Siblingii = copiii aceluiași părinte, în ordinea creării.</li>
+  <li><b>Noduri ascunse</b> (<code>hidden</code>, setat din UI/MCP; undo = scoți flag-ul, nu se șterge nimic): pentru navigare și pentru „nodul are copii?" nu există (stick-urile le sar; dacă toți copiii sunt ascunși, sus generează din nou), dar contează la dedup.</li>
+  <li>Arborele întreg = un JSON per sesiune, scris de motor pe disc.</li>
+</ul>
+
+<h2 id="ui">5. UI-ul</h2>
+<ul>
+  <li><b>Panou de citire</b>: textul căii curente (rădăcină → cursor), concatenat, cu cuvântul curent evidențiat și siblingii lui listați.</li>
+  <li><b>Arborele</b> desenat vertical, rădăcina jos, crește în sus (ca stick-ul stâng); stick-ul drept îl deplasează. Arborele arată cuvintele-nod stivuite; textul ca text e în panoul de citire.</li>
+  <li>Setări din UI: model, temperatură, prompt de start (fișier/clipboard — singurul loc unde e permisă tastatura 🙂), salvare/încărcare, bookmark, ascundere.</li>
+</ul>
+
+<h2 id="open">6. De măsurat / de decis în timp ce construim</h2>
+<ul>
+  <li><b>Latența per cuvânt</b> cu <code>gemma4:e2b</code> (pe <code>gemma3:270m</code> ~5 ms/token): e destul de mică pentru flux continuu? Un pas = 5 call-uri de 10–20 tokeni în paralel.</li>
+  <li><b>Deadzone &amp; repeat-rate</b>: cât de împins = „împins", la ce interval se repetă pasul (stânga/dreapta trebuie să se simtă ca un scroll bun, nu ca o mitralieră).</li>
+  <li><b>Base vs. instruct</b>: gemma din Ollama e instruct; un base model pur (<code>raw: true</code>) e mai „multiversal".</li>
+  <li><b>Layout-ul arborelui</b>: spacing și cum se văd ramurile ascunse.</li>
+</ul>
+<footer>Sursa de adevăr e <code>brainstorming.md</code>; pagina asta e aceeași informație, plus simulatorul.</footer>
+</main>
+</div>
+
+<script>
+// ---------- model ----------
+const WORDS = ['the','a','of','and','to','in','was','that','it','his','her','with','as','on','at','be','had','not','but','from','they','which','one','you','were','all','she','there','would','their','so','if','about','who','get','them','when','make','like','just','him','know','take','into','year','your','some','could','see','other','than','then','now','look','only','come','over','think','also','back','after','use','two','how','our','work','first','well','way','even','new','want','because','any','these','give','day','most','us','night','door','light','wind','river','voice','silence','again.','slowly,','once','never','always'];
+let nodes, active, nextId, lastVisited, pendingCount;
+const $ = s => document.querySelector(s);
+const latEl = $('#lat');
+
+function reset(){
+  nodes = new Map(); nextId = 1; lastVisited = new Map(); pendingCount = 0;
+  const root = {id:0,parent:null,text:'Once upon a time',hidden:false,children:[]};
+  nodes.set(0,root); active = root; render();
+}
+const vis = n => n.children.filter(c=>!c.hidden);
+const toast = (m)=>{const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),900)};
+const delay = ()=> new Promise(r=>setTimeout(r, +latEl.value*(0.4+Math.random()*1.2)));
+const fakeWord = ()=> (Math.random()<0.08?'\n':' ') + WORDS[Math.floor(Math.random()*WORDS.length)];
+
+// un "call" la Ollama: întoarce un cuvânt; dedup (inclusiv ascunși), păstrează primul sosit
+async function callOne(parent){
+  pendingCount++; render();
+  await delay();
+  pendingCount--;
+  const text = fakeWord();
+  if (parent.children.some(c=>c.text.trim()===text.trim())) return null;
+  const n = {id:nextId++,parent:parent.id,text,hidden:false,children:[]};
+  parent.children.push(n); nodes.set(n.id,n); return n;
+}
+let cam={x:0,y:0}; // offset-ul camerei față de cursor (stick drept)
+function setActive(n){ active=n; const p=nodes.get(n.parent); if(p) lastVisited.set(p.id,n.id); cam={x:0,y:0}; render(); }
+function activeChild(n){ const v=vis(n); if(!v.length) return null; const lv=v.find(c=>c.id===lastVisited.get(n.id)); return lv||v[0]; }
+
+// ---------- stick stâng ----------
+let busy=false;
+async function leftUp(){
+  const child = activeChild(active);
+  if (child) return setActive(child);                 // are copii vizibili → nu generează
+  if (busy) return; busy=true;
+  const parent = active; let entered=false;
+  await Promise.all(Array.from({length:5},async()=>{
+    const n = await callOne(parent);
+    if (n && !entered){ entered=true; setActive(n); } // capul intră în primul sosit
+    else render();
+  }));
+  if(!entered) toast('dublu — nimic nou');
+  busy=false; render();
+}
+async function leftSide(dir){
+  const p = nodes.get(active.parent); if(!p) return;
+  const v = vis(p), i = v.indexOf(active), j=i+dir;
+  if (j>=0 && j<v.length) return setActive(v[j]);
+  if (busy) return; busy=true;                        // capăt → +1 (fără wraparound)
+  const n = await callOne(p);
+  if (n) setActive(n); else toast('dublu — nimic nou');
+  busy=false; render();
+}
+function leftDown(){ const p=nodes.get(active.parent); if(p) setActive(p); }
+// ---------- stick drept: doar camera ----------
+function pan(dx,dy){ cam.x-=dx*14; cam.y-=dy*14; render(); }
+function hideActive(){ // din "UI/MCP": cursorul sare pe cel mai apropiat sibling vizibil, altfel pe părinte
+  if(active.id===0) return; const p=nodes.get(active.parent); const i=vis(p).indexOf(active);
+  active.hidden=true; const v=vis(p); setActive(v.length ? v[Math.min(i,v.length-1)] : p); }
+function unhideAll(){ nodes.forEach(n=>n.hidden=false); render(); }
+
+// ---------- render ----------
+function pathOf(n){ const a=[]; for(let c=n;c;c=nodes.get(c.parent)) a.unshift(c); return a; }
+function render(){
+  const tree=$('#tree'), svg=$('#edges'); tree.querySelectorAll('.node').forEach(e=>e.remove()); svg.innerHTML='';
+  // layout: depth-first, x = ordine frunze, y = depth (rădăcina jos)
+  const pos=new Map(); let x=0;
+  function lay(n,d){ if(!n.children.length){ pos.set(n.id,{x:x++,d}); return; } n.children.forEach(c=>lay(c,d+1)); const cs=n.children.map(c=>pos.get(c.id).x); pos.set(n.id,{x:(Math.min(...cs)+Math.max(...cs))/2,d}); }
+  lay(nodes.get(0),0);
+  const W=tree.clientWidth,H=tree.clientHeight, ap=pos.get(active.id), stepX=90, stepY=40;
+  const px = p => W/2 + (p.x-ap.x)*stepX + cam.x, py = p => H*0.65 - (p.d-ap.d)*stepY + cam.y;  // camera = cursor + offset-ul de pan
+  const path=new Set(pathOf(active).map(n=>n.id));
+  nodes.forEach(n=>{
+    const p=pos.get(n.id), el=document.createElement('div');
+    el.className='node'+(n.id===active.id?' active':'')+(n.hidden?' hidden':'')+(path.has(n.id)?' path':'');
+    el.textContent=n.text.trim()||'·'; el.style.left=px(p)+'px'; el.style.top=py(p)+'px'; tree.appendChild(el);
+    if(n.parent!==null){ const q=pos.get(n.parent); const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+      l.setAttribute('x1',px(q));l.setAttribute('y1',py(q));l.setAttribute('x2',px(p));l.setAttribute('y2',py(p));
+      l.setAttribute('stroke',path.has(n.id)?'var(--fg)':'var(--line)');l.setAttribute('stroke-width',path.has(n.id)?2:1);l.setAttribute('opacity',n.hidden?.3:1);svg.appendChild(l); }
+  });
+  for(let k=0;k<pendingCount;k++){ const el=document.createElement('div'); el.className='node pending'; el.textContent='…'; el.style.left=(W/2+ (k-2)*30)+'px'; el.style.top=(H*0.65-stepY)+'px'; tree.appendChild(el); }
+  // citire
+  const pn=pathOf(active);
+  $('#read').innerHTML = pn.map(n=>{ const t=n.text.replace(/</g,'&lt;').replace(/\n/g,'<br>'); return n.id===active.id?`<span class="cur">${t}</span>`:t; }).join('');
+  const par=nodes.get(active.parent);
+  $('#sibs').innerHTML = par ? 'siblingi: '+par.children.map(c=>`<span class="${c.id===active.id?'cur':''}${c.hidden?' hid':''}">${c.text.trim()}</span>`).join('') : 'rădăcină (prompt)';
+}
+window.addEventListener('resize',render);
+
+// ---------- input: tastatură ----------
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT') return;
+  const k=e.key.toLowerCase(); const map={w:leftUp,a:()=>leftSide(-1),d:()=>leftSide(1),s:leftDown,
+    arrowup:()=>pan(0,-1),arrowleft:()=>pan(-1,0),arrowright:()=>pan(1,0),arrowdown:()=>pan(0,1),h:hideActive,r:reset};
+  if(map[k]){ e.preventDefault(); map[k](); flash(k); }
+});
+function flash(k){ const L={w:[0,-1],a:[-1,0],s:[0,1],d:[1,0]}[k], R={arrowup:[0,-1],arrowleft:[-1,0],arrowdown:[0,1],arrowright:[1,0]}[k];
+  if(L) showStick('L',L[0],L[1]); if(R) showStick('R',R[0],R[1]); setTimeout(()=>{showStick('L',0,0);showStick('R',0,0)},150); }
+function showStick(s,x,y){ $('#stk'+s+' i').style.transform=`translate(${x*18}px,${y*18}px)`; }
+$('#bHide').onclick=hideActive; $('#bUnhide').onclick=unhideAll; $('#bReset').onclick=reset;
+latEl.oninput=()=>$('#latv').textContent=latEl.value;
+
+// ---------- input: Gamepad API (F310, mapare standard) ----------
+const DEAD=0.5, REPEAT=220; const last={L:{dir:null,t:0}};
+function dirOf(x,y){ if(Math.abs(x)<DEAD&&Math.abs(y)<DEAD) return null; return Math.abs(x)>Math.abs(y)?(x>0?'right':'left'):(y>0?'down':'up'); }
+function poll(){
+  const gp=[...(navigator.getGamepads?navigator.getGamepads():[])].find(g=>g&&g.connected);
+  if(gp){
+    $('#status').innerHTML=`gamepad: <b>${gp.id.slice(0,40)}</b> · mapping: ${gp.mapping||'?'}`;
+    const ax=gp.axes; showStick('L',ax[0],ax[1]); showStick('R',ax[2],ax[3]);
+    const now=performance.now();
+    const fire=(s,d)=>{ const st=last[s]; if(d&&(d!==st.dir||now-st.t>REPEAT)){ st.dir=d;st.t=now;
+      ({L:{up:leftUp,left:()=>leftSide(-1),right:()=>leftSide(1),down:leftDown}})[s][d](); }
+      if(!d) st.dir=null; };
+    fire('L',dirOf(ax[0],ax[1]));
+    const rx=Math.abs(ax[2])<0.15?0:ax[2], ry=Math.abs(ax[3])<0.15?0:ax[3];   // stick drept: pan analogic, continuu
+    if(rx||ry) pan(rx*0.6,ry*0.6);
+  }
+  requestAnimationFrame(poll);
+}
+window.addEventListener('gamepadconnected',()=>toast('gamepad conectat'));
+window.addEventListener('gamepaddisconnected',()=>$('#status').innerHTML='gamepad: <b>niciunul</b> — tastatură activă');
+reset(); poll();
+
+// nav highlight
+const secs=[...document.querySelectorAll('h2[id]')];
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id));}})},{rootMargin:'-20% 0px -70% 0px'});
+secs.forEach(s=>io.observe(s));
+</script>
+</body>
+</html>

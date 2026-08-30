@@ -2,7 +2,7 @@
 
 > Un loom (arbore de completări LLM, în tradiția Janus / cyborgiști) controlat
 > în întregime dintr-un gamepad Logitech. Ollama generează local, joystick-ul
-> stâng scrie, joystick-ul drept navighează prin copacul de posibilități.
+> stâng scrie, joystick-ul drept plimbă camera peste copacul de posibilități.
 
 ## 1. Conceptul
 
@@ -22,11 +22,12 @@
 Tot ce nu încape pe stick-uri (salvare, model, temperatură, prompt de start,
 bookmark, ascundere) se face din UI-ul web sau din Claude Desktop prin MCP.
 
-Geometria e aceeași pe ambele stick-uri și e izomorfă cu arborele, care
-crește de jos în sus ca o plantă: **sus = copii, stânga/dreapta = siblingi,
-jos = părinte.** Există un singur nod activ („cursorul"); ambele stick-uri îl
-mișcă, dar stângul *crește* arborele, dreptul *se plimbă* prin el. Camera
-urmărește singură nodul activ.
+Stick-ul stâng e izomorf cu arborele, care crește de jos în sus ca o plantă:
+**sus = copii, stânga/dreapta = siblingi, jos = părinte.** Există un singur
+nod activ („cursorul") și doar stick-ul stâng îl mișcă. Stick-ul drept nu
+atinge cursorul: e camera — face pan peste arbore ca să te uiți în jur.
+Camera urmărește singură cursorul; orice mișcare a stângului o aduce înapoi
+pe el.
 
 ### Stick stâng — capul de scriere
 
@@ -35,7 +36,7 @@ urmărește singură nodul activ.
   Ții împins → curge textul (deflexia = viteza: ușor = un cuvânt per impuls,
   la maxim = flux continuu).
   *Dacă nodul are deja copii vizibili*, sus **nu generează**, ci intră în
-  copilul activ (ultimul vizitat sau primul) — exact ca stick-ul drept.
+  copilul activ (ultimul vizitat sau primul).
   Alternative noi se cer explicit, cu stânga/dreapta la capătul listei;
   altfel fiecare revenire ar umple arborele cu copii neceruți.
 - **Stânga / dreapta** → te muți pe un sibling (alt cuvânt, aceeași poziție).
@@ -45,15 +46,14 @@ urmărește singură nodul activ.
   plimba. Lista **nu se învârte în cerc**: capătul e capăt, iar dacă împingi
   mai departe la capăt → se mai generează un sibling. Împingi în sus din
   siblingul ales → generarea continuă de acolo → o ramură nouă.
-- **Jos** → nimic. Părintele e treaba stick-ului drept.
-
-### Stick drept — navigatorul
-
-Nu generează niciodată.
-- **Stânga / dreapta** → siblingul anterior / următor, doar prin ce există;
-  la capăt nu se întâmplă nimic.
 - **Jos** → părinte.
-- **Sus** → copilul activ (ultimul vizitat sau primul).
+
+### Stick drept — camera
+
+Nu mișcă cursorul, nu generează nimic. **Orice direcție** → pan peste
+arbore în direcția aia (deflexia = viteza). Lași stick-ul → camera rămâne
+unde ai dus-o, până la următoarea mișcare a stângului, când sare înapoi pe
+cursor.
 
 ## 3. Generarea
 
@@ -118,7 +118,8 @@ Browser (gamepad + UI) ─────────────WS─────�
 
 - **Panou de citire**: textul căii curente (rădăcină → cursor), concatenat,
   cu cuvântul curent evidențiat și siblingii lui listați.
-- **Arborele** desenat vertical, rădăcina jos, crește în sus (ca stick-ul).
+- **Arborele** desenat vertical, rădăcina jos, crește în sus (ca stick-ul
+  stâng); stick-ul drept îl deplasează.
   Arborele arată cuvintele-nod stivuite; textul ca text e în panoul de citire.
 - Setări din UI: model, temperatură, prompt de start (fișier/clipboard —
   singurul loc unde e permisă tastatura 🙂), salvare/încărcare, bookmark,
