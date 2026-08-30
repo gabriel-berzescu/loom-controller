@@ -118,6 +118,26 @@ loom-urile clasice pe paragrafe.
   frontend web doar pentru randare. Mai multe piese, dar separă bine
   „simularea" de „ecran". Probabil overkill pentru MVP.
 
+### Server MCP (pentru Claude Desktop)
+
+> **Decizie (Gabriel): transport stdio.** Serverul e un proces local pornit
+> de Claude Desktop din `claude_desktop_config.json` (`command` + `args`),
+> nu un Custom Connector. Motive:
+> - Connectors cer URL public + OAuth (conexiunea trece prin infra Anthropic);
+>   pentru un tool local, cu Ollama pe `localhost`, n-are sens.
+> - HTTP local ar merge doar cu un bridge (`mcp-remote`) — complicație inutilă.
+> - Config-ul Desktop deja are alte servere stdio (memory, windows-terminal),
+>   deci se adaugă la fel.
+>
+> Rol: Claude Desktop ca „controller virtual" — aceleași operații ca stick-urile
+> (pas înainte, cyclează alternative, urcă la părinte, citește calea curentă),
+> expuse ca tool-uri peste același arbore. Util pentru testat motorul fără
+> gamepad și pentru „co-pilot": Claude explorează ramuri, tu decizi.
+>
+> *De revenit:* dacă serverul MCP și web app-ul trebuie să vadă *același*
+> arbore live (nu doar același JSON pe disc), motorul iese într-un proces
+> separat (Opțiunea C, hibrid) și MCP-ul devine doar un client subțire al lui.
+
 ### Date
 - Nod = `{ id, parent_id, text, model, params (temp, seed), created_at,
   bookmarked, collapsed }`.
