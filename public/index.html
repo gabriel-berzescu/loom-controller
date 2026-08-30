@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>loom</title>
+<style>
+  :root{--bg:#15161a;--fg:#ebe8e0;--muted:#9a968c;--line:#33353c;--card:#1e2026;--accent:#fb923c;--accent-soft:#3b2416;
+    --left:#93b4ff;--right:#5ee0b0;--hidden:#5c5a55;--star:#facc15;--mono:ui-monospace,"Cascadia Code",Consolas,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:grid;grid-template-rows:auto 1fr;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,Segoe UI,sans-serif;overflow:hidden}
+  header{display:flex;gap:16px;align-items:center;padding:8px 14px;border-bottom:1px solid var(--line);background:var(--card);flex-wrap:wrap}
+  header h1{font-size:15px;margin:0;letter-spacing:.04em}
+  .pad{display:flex;gap:10px;align-items:center}
+  .stk{width:38px;height:38px;border-radius:50%;border:2px solid var(--line);position:relative;background:var(--bg)}
+  .stk i{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px;border-radius:50%;background:var(--muted)}
+  .stk.L i{background:var(--left)} .stk.R i{background:var(--right)}
+  .status{font:12px var(--mono);color:var(--muted)} .status b{color:var(--accent)}
+  .spacer{flex:1}
+  header label{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+  input,select,button{font:13px system-ui;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:4px 8px}
+  button{cursor:pointer} button:hover{border-color:var(--fg)}
+  main{display:grid;grid-template-columns:minmax(0,1fr) 380px;min-height:0}
+  .tree{position:relative;overflow:hidden;background:repeating-linear-gradient(0deg,transparent 0 47px,var(--line) 47px 48px)}
+  .tree svg{position:absolute;inset:0;width:100%;height:100%}
+  .node{position:absolute;transform:translate(-50%,-50%);font:14px var(--mono);padding:4px 9px;border-radius:6px;background:var(--card);
+    border:1px solid var(--line);white-space:pre;transition:left .15s,top .15s,opacity .15s;cursor:pointer}
+  .node.path{border-color:var(--fg)}
+  .node.active{background:var(--accent);color:#000;border-color:var(--accent);z-index:2}
+  .node.hidden{opacity:.3;text-decoration:line-through;color:var(--hidden)}
+  .node.star::after{content:"★";color:var(--star);margin-left:5px}
+  .node.pending{opacity:.5;border-style:dashed}
+  aside{border-left:1px solid var(--line);background:var(--card);padding:14px;overflow:auto;display:flex;flex-direction:column;gap:12px}
+  h3{font-size:11px;margin:0;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+  .read{font-size:17px;line-height:1.65;white-space:pre-wrap;font-family:Georgia,serif}
+  .read .cur{background:var(--accent-soft);color:var(--accent);border-radius:3px}
+  .sibs span{display:inline-block;font:13px var(--mono);padding:2px 7px;margin:2px;border:1px solid var(--line);border-radius:5px}
+  .sibs span.cur{background:var(--accent);color:#000;border-color:var(--accent)}
+  .sibs span.hid{opacity:.35;text-decoration:line-through}
+  .btns{display:flex;flex-wrap:wrap;gap:6px}
+  .toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);font:12px var(--mono);background:var(--accent);color:#000;padding:4px 10px;border-radius:6px;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.show{opacity:1} .toast.err{background:#ef4444;color:#fff}
+  .keys{font-size:11px;color:var(--muted)} kbd{font:11px var(--mono);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+</style>
+</head>
+<body>
+<header>
+  <h1>loom-controller</h1>
+  <div class="pad"><div class="stk L" id="stkL"><i></i></div><div class="stk R" id="stkR"><i></i></div></div>
+  <div class="status" id="status">gamepad: <b>niciunul</b> · tastatură activă</div>
+  <div class="spacer"></div>
+  <label>model <select id="model"></select></label>
+  <label>temp <input id="temp" type="number" step="0.1" min="0" max="2" style="width:60px"></label>
+  <label>tokeni <input id="npred" type="number" min="4" max="64" style="width:56px"></label>
+  <div class="status" id="conn">ws: <b>…</b></div>
+</header>
+<main>
+  <div class="tree" id="tree"><svg id="edges"></svg><div class="toast" id="toast"></div></div>
+  <aside>
+    <h3>calea curentă</h3>
+    <div class="read" id="read"></div>
+    <h3>siblingi</h3>
+    <div class="sibs" id="sibs"></div>
+    <h3>din UI (nu de pe controller)</h3>
+    <div class="btns">
+      <button id="bHide">ascunde nodul</button>
+      <button id="bStar">★ bookmark</button>
+      <button id="bSave">salvează</button>
+      <select id="sessions"><option value="">— încarcă sesiune —</option></select>
+    </div>
+    <div class="btns">
+      <input id="prompt" placeholder="prompt de start" style="flex:1">
+      <button id="bNew">arbore nou</button>
+    </div>
+    <div class="keys">
+      <b>stâng</b> <kbd>W</kbd> cuvânt · <kbd>A</kbd><kbd>D</kbd> siblingi · <kbd>S</kbd> părinte &nbsp;
+      <b>drept</b> <kbd>↑←↓→</kbd> pan · <kbd>H</kbd> ascunde · <kbd>B</kbd> stea
+    </div>
+    <div class="status" id="sess"></div>
+  </aside>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+let state = null, cam = {x:0, y:0}, ws, nextId = 1, pendingCalls = 0;
+
+// ---------- WebSocket ----------
+function connect(){
+  ws = new WebSocket(`ws://${location.host}`);
+  ws.onopen = () => $('#conn').innerHTML = 'ws: <b>conectat</b>';
+  ws.onclose = () => { $('#conn').innerHTML = 'ws: <b>deconectat</b>'; setTimeout(connect, 1500); };
+  ws.onmessage = ev => {
+    const m = JSON.parse(ev.data);
+    if (m.type === 'error') toast(m.error, true);
+    if (m.type === 'result') { pendingCalls = Math.max(0, pendingCalls-1); if (m.error) toast(m.error, true); else if (m.result?.duplicate) toast('dublu — nimic nou'); }
+    if (m.state) { const prevActive = state?.active; state = m.state; if (state.active !== prevActive) cam = {x:0,y:0}; render(); }
+  };
+}
+function send(cmd, params={}){ if (ws?.readyState !== 1) return; if (['step','sibling'].includes(cmd)) pendingCalls++; ws.send(JSON.stringify({id: nextId++, cmd, ...params})); }
+function toast(m, err){ const t=$('#toast'); t.textContent=m; t.className='toast show'+(err?' err':''); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'), err?2500:900); }
+
+// ---------- render ----------
+const byId = id => state.nodes.find(n => n.id === id);
+function pathOf(id){ const a=[]; for(let n=byId(id); n; n = n.parent_id===null?null:byId(n.parent_id)) a.unshift(n); return a; }
+function render(){
+  if (!state) return;
+  const tree=$('#tree'), svg=$('#edges'); tree.querySelectorAll('.node').forEach(e=>e.remove()); svg.innerHTML='';
+  const kids = new Map(); state.nodes.forEach(n => { if(!kids.has(n.parent_id)) kids.set(n.parent_id, []); kids.get(n.parent_id).push(n); });
+  const pos = new Map(); let x = 0;
+  function lay(n, d){ const cs = kids.get(n.id) || []; if (!cs.length) { pos.set(n.id, {x: x++, d}); return; } cs.forEach(c => lay(c, d+1)); const xs = cs.map(c => pos.get(c.id).x); pos.set(n.id, {x:(Math.min(...xs)+Math.max(...xs))/2, d}); }
+  lay(byId(0), 0);
+  const W = tree.clientWidth, H = tree.clientHeight, ap = pos.get(state.active), stepX = 110, stepY = 48;
+  const px = p => W/2 + (p.x-ap.x)*stepX + cam.x, py = p => H*0.62 - (p.d-ap.d)*stepY + cam.y;
+  const path = new Set(pathOf(state.active).map(n => n.id));
+  for (const n of state.nodes) {
+    const p = pos.get(n.id), el = document.createElement('div');
+    el.className = 'node' + (n.id===state.active?' active':'') + (n.hidden?' hidden':'') + (path.has(n.id)?' path':'') + (n.bookmarked?' star':'');
+    el.textContent = n.parent_id===null ? (n.text.length>24 ? '…'+n.text.slice(-22) : n.text) : (n.text.trim() || '·');
+    el.style.left = px(p)+'px'; el.style.top = py(p)+'px'; el.onclick = () => send('goto', {id:n.id}); tree.appendChild(el);
+    if (n.parent_id !== null) { const q = pos.get(n.parent_id); const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+      l.setAttribute('x1',px(q)); l.setAttribute('y1',py(q)); l.setAttribute('x2',px(p)); l.setAttribute('y2',py(p));
+      l.setAttribute('stroke', path.has(n.id)?'var(--fg)':'var(--line)'); l.setAttribute('stroke-width', path.has(n.id)?2:1); l.setAttribute('opacity', n.hidden?.3:1); svg.appendChild(l); }
+  }
+  if (state.busy) for (let k=0;k<3;k++){ const el=document.createElement('div'); el.className='node pending'; el.textContent='…'; el.style.left=(W/2+(k-1)*40+cam.x)+'px'; el.style.top=(H*0.62-stepY+cam.y)+'px'; tree.appendChild(el); }
+  const pn = pathOf(state.active);
+  $('#read').innerHTML = pn.map(n => { const t = n.text.replace(/&/g,'&amp;').replace(/</g,'&lt;'); return n.id===state.active ? `<span class="cur">${t}</span>` : t; }).join('');
+  $('#read').scrollTop = 1e9;
+  const act = byId(state.active);
+  $('#sibs').innerHTML = act.parent_id===null ? '<i style="color:var(--muted)">rădăcină (prompt)</i>'
+    : state.nodes.filter(n => n.parent_id===act.parent_id).map(c => `<span class="${c.id===state.active?'cur':''}${c.hidden?' hid':''}" onclick="send('goto',{id:${c.id}})">${c.text.trim().replace(/</g,'&lt;')}${c.bookmarked?' ★':''}</span>`).join('');
+  $('#sess').textContent = (state.session ? `sesiune: ${state.session}` : 'sesiune nesalvată') + ` · ${state.nodes.length} noduri`;
+  if (document.activeElement.tagName !== 'INPUT') { $('#temp').value = state.settings.temperature; $('#npred').value = state.settings.num_predict; }
+  const ms = $('#model'); if (![...ms.options].some(o => o.value === state.settings.model)) ms.add(new Option(state.settings.model)); ms.value = state.settings.model;
+}
+window.addEventListener('resize', render);
+
+// ---------- input ----------
+const leftUp = () => send('step'), leftSide = d => send('sibling',{dir:d}), leftDown = () => send('up');
+function pan(dx, dy){ cam.x -= dx*16; cam.y -= dy*16; render(); }
+document.addEventListener('keydown', e => {
+  if (['INPUT','SELECT'].includes(e.target.tagName)) return;
+  const map = { w:leftUp, a:()=>leftSide(-1), d:()=>leftSide(1), s:leftDown, arrowup:()=>pan(0,-1), arrowleft:()=>pan(-1,0), arrowright:()=>pan(1,0), arrowdown:()=>pan(0,1),
+    h:()=>send('hide'), b:()=>send('bookmark',{bookmarked:!byId(state.active).bookmarked}) };
+  const f = map[e.key.toLowerCase()]; if (f) { e.preventDefault(); f(); }
+});
+$('#bHide').onclick = () => send('hide');
+$('#bStar').onclick = () => send('bookmark',{bookmarked:!byId(state.active).bookmarked});
+$('#bSave').onclick = () => { send('save', {}); refreshSessions(); toast('salvat'); };
+$('#bNew').onclick = () => { const p = $('#prompt').value.trim(); if (p) send('new',{prompt:p}); };
+$('#sessions').onchange = e => { if (e.target.value) send('load',{name:e.target.value}); };
+$('#temp').onchange = e => send('settings',{temperature:+e.target.value});
+$('#npred').onchange = e => send('settings',{num_predict:+e.target.value});
+$('#model').onchange = e => send('settings',{model:e.target.value});
+function refreshSessions(){ const w = new WebSocket(`ws://${location.host}`); w.onopen=()=>w.send(JSON.stringify({id:0,cmd:'sessions'})); w.onmessage=ev=>{ const m=JSON.parse(ev.data); if(m.type==='result'){ const s=$('#sessions'); s.innerHTML='<option value="">— încarcă sesiune —</option>'; m.result.sessions.forEach(n=>s.add(new Option(n))); w.close(); } }; }
+setTimeout(refreshSessions, 500);
+// modele din Ollama, prin motor? Motorul nu proxy-ază; le luăm din ce știe pagina + ce scrii tu
+['gemma4:e2b','gemma3:270m'].forEach(m => $('#model').add(new Option(m)));
+
+// ---------- Gamepad API (F310, mapare standard) ----------
+const DEAD = 0.5, REPEAT_MIN = 90, REPEAT_MAX = 400; // deflexia = viteza (repeat mai des la împins mai tare)
+const last = { dir:null, t:0 };
+function showStick(s, x, y){ $('#stk'+s+' i').style.transform = `translate(${x*11}px,${y*11}px)`; }
+function dirOf(x, y){ if (Math.abs(x)<DEAD && Math.abs(y)<DEAD) return null; return Math.abs(x)>Math.abs(y) ? (x>0?'right':'left') : (y>0?'down':'up'); }
+function poll(){
+  const gp = [...(navigator.getGamepads?.() || [])].find(g => g && g.connected);
+  if (gp) {
+    $('#status').innerHTML = `gamepad: <b>${gp.id.slice(0,32)}</b> · ${gp.mapping||'?'}`;
+    const ax = gp.axes; showStick('L', ax[0], ax[1]); showStick('R', ax[2], ax[3]);
+    const now = performance.now(), d = dirOf(ax[0], ax[1]);
+    if (d) {
+      const mag = Math.max(Math.abs(ax[0]), Math.abs(ax[1]));
+      const repeat = REPEAT_MAX - (REPEAT_MAX-REPEAT_MIN) * Math.min(1, (mag-DEAD)/(1-DEAD));
+      if ((d !== last.dir || now - last.t > repeat) && !pendingCalls) {   // nu trimitem un pas nou cât timp unul e în zbor
+        last.dir = d; last.t = now;
+        ({ up:leftUp, left:()=>leftSide(-1), right:()=>leftSide(1), down:leftDown })[d]();
+      }
+    } else last.dir = null;
+    const rx = Math.abs(ax[2])<0.15?0:ax[2], ry = Math.abs(ax[3])<0.15?0:ax[3];
+    if (rx || ry) pan(rx*0.7, ry*0.7);
+  }
+  requestAnimationFrame(poll);
+}
+window.addEventListener('gamepadconnected', () => toast('gamepad conectat'));
+window.addEventListener('gamepaddisconnected', () => $('#status').innerHTML = 'gamepad: <b>niciunul</b> · tastatură activă');
+connect(); poll();
+</script>
+</body>
+</html>
