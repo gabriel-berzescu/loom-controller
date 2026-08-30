@@ -18,7 +18,9 @@
 
 ## 2. Controllerul
 
-**Doar cele 4 axe ale celor două stick-uri.** Fără butoane, fără L3/R3.
+**Cele 4 axe ale celor două stick-uri**, plus o singură excepție de butoane:
+**Y (galben) = zoom in, A (verde) = zoom out** pe arbore. Altfel fără
+butoane, fără L3/R3.
 Tot ce nu încape pe stick-uri (salvare, model, temperatură, prompt de start,
 bookmark, ascundere) se face din UI-ul web sau din Claude Desktop prin MCP.
 

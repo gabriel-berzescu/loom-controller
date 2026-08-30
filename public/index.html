@@ -76,14 +76,15 @@
     </div>
     <div class="keys">
       <b>stâng</b> <kbd>W</kbd> cuvânt · <kbd>A</kbd><kbd>D</kbd> siblingi · <kbd>S</kbd> părinte &nbsp;
-      <b>drept</b> <kbd>↑←↓→</kbd> pan · <kbd>H</kbd> ascunde · <kbd>B</kbd> stea
+      <b>drept</b> <kbd>↑←↓→</kbd> pan · <kbd>Y</kbd>/<kbd>A</kbd> (<kbd>+</kbd>/<kbd>−</kbd>) zoom · <kbd>H</kbd> ascunde · <kbd>B</kbd> stea
     </div>
     <div class="status" id="sess"></div>
   </aside>
 </main>
 <script>
 const $ = s => document.querySelector(s);
-let state = null, cam = {x:0, y:0}, ws, nextId = 1, pendingCalls = 0;
+let state = null, cam = {x:0, y:0}, zoom = 1, ws, nextId = 1, pendingCalls = 0;
+function zoomBy(f){ zoom = Math.min(3, Math.max(0.25, zoom*f)); render(); }
 
 // ---------- WebSocket ----------
 function connect(){
@@ -110,7 +111,7 @@ function render(){
   const pos = new Map(); let x = 0;
   function lay(n, d){ const cs = kids.get(n.id) || []; if (!cs.length) { pos.set(n.id, {x: x++, d}); return; } cs.forEach(c => lay(c, d+1)); const xs = cs.map(c => pos.get(c.id).x); pos.set(n.id, {x:(Math.min(...xs)+Math.max(...xs))/2, d}); }
   lay(byId(0), 0);
-  const W = tree.clientWidth, H = tree.clientHeight, ap = pos.get(state.active), stepX = 110, stepY = 48;
+  const W = tree.clientWidth, H = tree.clientHeight, ap = pos.get(state.active), stepX = 110*zoom, stepY = 48*zoom;
   const px = p => W/2 + (p.x-ap.x)*stepX + cam.x, py = p => H*0.62 - (p.d-ap.d)*stepY + cam.y;
   const path = new Set(pathOf(state.active).map(n => n.id));
   for (const n of state.nodes) {
@@ -118,7 +119,9 @@ function render(){
     el.className = 'node' + (n.id===state.active?' active':'') + (n.hidden?' hidden':'') + (path.has(n.id)?' path':'') + (n.bookmarked?' star':'')
       + (state.cursors?.some(c => c.key!==state.me && c.role!=='human' && c.active===n.id) ? ' other' : '');   // cursorul lui Claude (verde)
     el.textContent = n.parent_id===null ? (n.text.length>24 ? '…'+n.text.slice(-22) : n.text) : (n.text.trim() || '·');
-    el.style.left = px(p)+'px'; el.style.top = py(p)+'px'; el.onclick = () => send('goto', {id:n.id}); tree.appendChild(el);
+    el.style.left = px(p)+'px'; el.style.top = py(p)+'px';
+    el.style.fontSize = Math.max(8, Math.round(14*Math.min(zoom,1.4)))+'px';   // textul scade la zoom-out, dar nu crește enorm la zoom-in
+    el.onclick = () => send('goto', {id:n.id}); tree.appendChild(el);
     if (n.parent_id !== null) { const q = pos.get(n.parent_id); const l = document.createElementNS('http://www.w3.org/2000/svg','line');
       l.setAttribute('x1',px(q)); l.setAttribute('y1',py(q)); l.setAttribute('x2',px(p)); l.setAttribute('y2',py(p));
       l.setAttribute('stroke', path.has(n.id)?'var(--fg)':'var(--line)'); l.setAttribute('stroke-width', path.has(n.id)?2:1); l.setAttribute('opacity', n.hidden?.3:1); svg.appendChild(l); }
@@ -142,7 +145,8 @@ function pan(dx, dy){ cam.x -= dx*16; cam.y -= dy*16; render(); }
 document.addEventListener('keydown', e => {
   if (['INPUT','SELECT'].includes(e.target.tagName)) return;
   const map = { w:leftUp, a:()=>leftSide(-1), d:()=>leftSide(1), s:leftDown, arrowup:()=>pan(0,-1), arrowleft:()=>pan(-1,0), arrowright:()=>pan(1,0), arrowdown:()=>pan(0,1),
-    h:()=>send('hide'), b:()=>send('bookmark',{bookmarked:!byId(state.active).bookmarked}) };
+    h:()=>send('hide'), b:()=>send('bookmark',{bookmarked:!byId(state.active).bookmarked}),
+    '+':()=>zoomBy(1.15), '=':()=>zoomBy(1.15), '-':()=>zoomBy(1/1.15) };
   const f = map[e.key.toLowerCase()]; if (f) { e.preventDefault(); f(); }
 });
 $('#bHide').onclick = () => send('hide');
@@ -160,7 +164,7 @@ setTimeout(refreshSessions, 500);
 ['gemma4:e2b','gemma3:270m'].forEach(m => $('#model').add(new Option(m)));
 
 // ---------- Gamepad API (F310, mapare standard) ----------
-const DEAD = 0.5, REPEAT_MIN = 90, REPEAT_MAX = 400; // deflexia = viteza (repeat mai des la împins mai tare)
+const DEAD = 0.62, REPEAT_MIN = 170, REPEAT_MAX = 650; // deflexia = viteza (repeat mai des la împins mai tare)
 const last = { dir:null, t:0 };
 function showStick(s, x, y){ $('#stk'+s+' i').style.transform = `translate(${x*11}px,${y*11}px)`; }
 function dirOf(x, y){ if (Math.abs(x)<DEAD && Math.abs(y)<DEAD) return null; return Math.abs(x)>Math.abs(y) ? (x>0?'right':'left') : (y>0?'down':'up'); }
@@ -180,6 +184,8 @@ function poll(){
     } else last.dir = null;
     const rx = Math.abs(ax[2])<0.15?0:ax[2], ry = Math.abs(ax[3])<0.15?0:ax[3];
     if (rx || ry) pan(rx*0.7, ry*0.7);
+    if (gp.buttons[3]?.pressed) zoomBy(1.03);      // Y (galben) = zoom in
+    else if (gp.buttons[0]?.pressed) zoomBy(1/1.03); // A (verde)  = zoom out
   }
   requestAnimationFrame(poll);
 }
