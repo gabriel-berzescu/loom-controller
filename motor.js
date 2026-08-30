@@ -18,6 +18,9 @@ const SIBLINGS = 5;
 const settings = {
   model: process.env.LOOM_MODEL || 'gemma4:e2b',
   temperature: 1.0,
+  top_k: 40,      // câți candidați intră în calcul (mai mare = coadă mai lungă)
+  top_p: 0.9,     // nucleus sampling: taie coada după masă de probabilitate
+  min_p: 0.0,     // taie candidații sub min_p × prob. celui mai probabil
   num_predict: 16,
   keep_alive: '30m',
 };
@@ -79,7 +82,8 @@ async function generateWord(prompt, seed) {
     body: JSON.stringify({
       model: settings.model, prompt, raw: true, stream: true,
       keep_alive: settings.keep_alive,
-      options: { num_predict: settings.num_predict, temperature: settings.temperature, seed },
+      options: { num_predict: settings.num_predict, temperature: settings.temperature,
+                 top_k: settings.top_k, top_p: settings.top_p, min_p: settings.min_p, seed },
     }),
   });
   if (!res.ok) throw new Error(`Ollama ${res.status}: ${await res.text()}`);
@@ -107,7 +111,8 @@ async function generateWord(prompt, seed) {
 function addWordNode(parent_id, text, seed) {
   if (!text.trim()) return null;
   if (children(parent_id).some(c => c.text.trim() === text.trim())) return null;
-  return mkNode(parent_id, text, settings.model, { temperature: settings.temperature, seed });
+  return mkNode(parent_id, text, settings.model,
+    { temperature: settings.temperature, top_k: settings.top_k, top_p: settings.top_p, min_p: settings.min_p, seed });
 }
 const rndSeed = () => Math.floor(Math.random() * 2 ** 31);
 
@@ -191,7 +196,7 @@ const commands = {
     return { ok: true };
   },
   bookmark: (p, cur) => { node(p.id ?? cur.active).bookmarked = p.bookmarked ?? true; return { ok: true }; },
-  settings: (p) => { for (const k of ['model', 'temperature', 'num_predict']) if (p[k] !== undefined) settings[k] = p[k]; return settings; },
+  settings: (p) => { for (const k of ['model', 'temperature', 'top_k', 'top_p', 'min_p', 'num_predict']) if (p[k] !== undefined) settings[k] = p[k]; return settings; },
   new: (p, cur) => { newTree(p.prompt ?? 'Once upon a time'); return { ok: true }; },
   save: (p) => ({ name: save(p.name) }),
   load: (p) => { load(p.name); return { ok: true }; },

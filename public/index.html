@@ -51,7 +51,10 @@
   <div class="status" id="status">gamepad: <b>niciunul</b> · tastatură activă</div>
   <div class="spacer"></div>
   <label>model <select id="model"></select></label>
-  <label>temp <input id="temp" type="number" step="0.1" min="0" max="2" style="width:60px"></label>
+  <label>temp <input id="temp" type="number" step="0.1" min="0" max="3" style="width:56px"></label>
+  <label>top_k <input id="topk" type="number" step="1" min="0" max="500" style="width:56px"></label>
+  <label>top_p <input id="topp" type="number" step="0.05" min="0" max="1" style="width:56px"></label>
+  <label>min_p <input id="minp" type="number" step="0.01" min="0" max="1" style="width:56px"></label>
   <label>tokeni <input id="npred" type="number" min="4" max="64" style="width:56px"></label>
   <div class="status" id="conn">ws: <b>…</b></div>
 </header>
@@ -134,7 +137,8 @@ function render(){
   $('#sibs').innerHTML = act.parent_id===null ? '<i style="color:var(--muted)">rădăcină (prompt)</i>'
     : state.nodes.filter(n => n.parent_id===act.parent_id).map(c => `<span class="${c.id===state.active?'cur':''}${c.hidden?' hid':''}" onclick="send('goto',{id:${c.id}})">${c.text.trim().replace(/</g,'&lt;')}${c.bookmarked?' ★':''}</span>`).join('');
   $('#sess').textContent = (state.session ? `sesiune: ${state.session}` : 'sesiune nesalvată') + ` · ${state.nodes.length} noduri`;
-  if (document.activeElement.tagName !== 'INPUT') { $('#temp').value = state.settings.temperature; $('#npred').value = state.settings.num_predict; }
+  if (document.activeElement.tagName !== 'INPUT') { $('#temp').value = state.settings.temperature; $('#npred').value = state.settings.num_predict;
+    $('#topk').value = state.settings.top_k; $('#topp').value = state.settings.top_p; $('#minp').value = state.settings.min_p; }
   const ms = $('#model'); if (![...ms.options].some(o => o.value === state.settings.model)) ms.add(new Option(state.settings.model)); ms.value = state.settings.model;
 }
 window.addEventListener('resize', render);
@@ -156,6 +160,9 @@ $('#bSave').onclick = () => { send('save', {}); refreshSessions(); toast('salvat
 $('#bNew').onclick = () => { const p = $('#prompt').value.trim(); if (p) send('new',{prompt:p}); };
 $('#sessions').onchange = e => { if (e.target.value) send('load',{name:e.target.value}); };
 $('#temp').onchange = e => send('settings',{temperature:+e.target.value});
+$('#topk').onchange = e => send('settings',{top_k:+e.target.value});
+$('#topp').onchange = e => send('settings',{top_p:+e.target.value});
+$('#minp').onchange = e => send('settings',{min_p:+e.target.value});
 $('#npred').onchange = e => send('settings',{num_predict:+e.target.value});
 $('#model').onchange = e => send('settings',{model:e.target.value});
 function refreshSessions(){ const w = new WebSocket(`ws://${location.host}`); w.onopen=()=>w.send(JSON.stringify({id:0,cmd:'sessions'})); w.onmessage=ev=>{ const m=JSON.parse(ev.data); if(m.type==='result'){ const s=$('#sessions'); s.innerHTML='<option value="">— încarcă sesiune —</option>'; m.result.sessions.forEach(n=>s.add(new Option(n))); w.close(); } }; }

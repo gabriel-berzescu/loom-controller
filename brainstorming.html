@@ -162,7 +162,7 @@
 
 <h2 id="gen">3. Generarea</h2>
 <ul>
-  <li>Un cuvânt = un call la <code>/api/generate</code> cu <code>raw: true</code>, <code>num_predict</code> 10–20, temperatură &gt; 0 (setare globală, din UI/MCP). Siblingii diferă doar prin <code>seed</code> (salvat în nod → reproductibil).</li>
+  <li>Un cuvânt = un call la <code>/api/generate</code> cu <code>raw: true</code>, <code>num_predict</code> 10–20, temperatură &gt; 0 și sampling (<code>top_k</code> / <code>top_p</code> / <code>min_p</code>) — setări globale, din UI/MCP. Siblingii diferă doar prin <code>seed</code> (salvat în nod → reproductibil).</li>
   <li><b>Tăierea:</b> treci <i>peste</i> whitespace-ul de la începutul răspunsului (îl păstrezi în nod), oprește-te la primul whitespace de după — ce ai până acolo e nodul. Punctuația lipită („was,") rămâne parte din cuvânt. Dacă nu apare niciun whitespace, accepți ce ai. Cu streaming, motorul închide call-ul imediat ce apare whitespace-ul de după cuvânt.</li>
   <li>Nodul ține <b>exact ce a dat modelul</b>, inclusiv whitespace-ul/newline-ul dinainte; textul căii = nodurile lipite cap la cap (<code>join("")</code>).</li>
   <li><b>Dedup</b> pe <code>text.trim()</code>: se păstrează primul sosit; dacă din 5 rămân mai puțin, rămân atâția, fără reîncercare. Același lucru la „+1 la capătul listei": dacă iese un dublu, nu apare nimic, UI-ul semnalează scurt. Siblingii ascunși contează la dedup.</li>
@@ -192,7 +192,7 @@ Browser (gamepad + UI) ─────────────WS─────�
 <ul>
   <li><b>Panou de citire</b>: textul căii curente (rădăcină → cursor), concatenat, cu cuvântul curent evidențiat și siblingii lui listați.</li>
   <li><b>Arborele</b> desenat vertical, rădăcina jos, crește în sus (ca stick-ul stâng); stick-ul drept îl deplasează. Arborele arată cuvintele-nod stivuite; textul ca text e în panoul de citire.</li>
-  <li>Setări din UI: model, temperatură, prompt de start (fișier/clipboard — singurul loc unde e permisă tastatura 🙂), salvare/încărcare, bookmark, ascundere.</li>
+  <li>Setări din UI: model, temperatură, top_k/top_p/min_p, prompt de start (fișier/clipboard — singurul loc unde e permisă tastatura 🙂), salvare/încărcare, bookmark, ascundere.</li>
 </ul>
 
 <h2 id="open">6. De măsurat / de decis în timp ce construim</h2>

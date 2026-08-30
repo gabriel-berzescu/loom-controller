@@ -84,8 +84,8 @@ server.tool('hide', 'Ascunde (sau arată) un nod și subarborele lui. Nu șterge
   wrap(async (a) => { const r = await call('hide', a); return describe(r.state); }));
 server.tool('bookmark', 'Pune / scoate o stea pe un nod.', { id: z.number().int().optional(), bookmarked: z.boolean().default(true) },
   wrap(async (a) => { const r = await call('bookmark', a); return describe(r.state); }));
-server.tool('settings', 'Citește sau schimbă model / temperature / num_predict (setări globale).',
-  { model: z.string().optional(), temperature: z.number().optional(), num_predict: z.number().int().optional() },
+server.tool('settings', 'Citește sau schimbă model / temperature / top_k / top_p / min_p / num_predict (setări globale). Pentru evantaie mai variate: temperature 1.3–1.7 cu min_p 0.03–0.1 (și top_p 1) lărgește coada dar taie delirul; top_k mic (3–5) o îngustează.',
+  { model: z.string().optional(), temperature: z.number().optional(), top_k: z.number().int().optional(), top_p: z.number().optional(), min_p: z.number().optional(), num_predict: z.number().int().optional() },
   wrap(async (a) => text((await call('settings', a)).result)));
 server.tool('new', 'Arbore nou cu promptul de start dat (rădăcina).', { prompt: z.string() },
   wrap(async ({ prompt }) => { const r = await call('new', { prompt }); return describe(r.state); }));

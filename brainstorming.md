@@ -62,7 +62,8 @@ cursor.
 ## 3. Generarea
 
 - Un cuvânt = un call la `/api/generate` cu `raw: true`, `num_predict` 10–20,
-  temperatură > 0 (setare globală, din UI/MCP). Siblingii diferă doar prin
+  temperatură > 0 și sampling (`top_k` / `top_p` / `min_p`) — setări
+  globale, din UI/MCP. Siblingii diferă doar prin
   `seed` (salvat în nod → reproductibil).
 - **Tăierea:** treci *peste* whitespace-ul de la începutul răspunsului (îl
   păstrezi în nod), oprește-te la primul whitespace de după — ce ai până
@@ -127,7 +128,7 @@ Browser (gamepad + UI) ─────────────WS─────�
 - **Arborele** desenat vertical, rădăcina jos, crește în sus (ca stick-ul
   stâng); stick-ul drept îl deplasează.
   Arborele arată cuvintele-nod stivuite; textul ca text e în panoul de citire.
-- Setări din UI: model, temperatură, prompt de start (fișier/clipboard —
+- Setări din UI: model, temperatură, top_k/top_p/min_p, prompt de start (fișier/clipboard —
   singurul loc unde e permisă tastatura 🙂), salvare/încărcare, bookmark,
   ascundere.
 
