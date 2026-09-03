@@ -62,7 +62,7 @@
   <label data-tip="top_k">top_k <input id="topk" type="number" step="1" min="0" max="500" style="width:56px"></label>
   <label data-tip="top_p">top_p <input id="topp" type="number" step="0.05" min="0" max="1" style="width:56px"></label>
   <label data-tip="min_p">min_p <input id="minp" type="number" step="0.01" min="0" max="1" style="width:56px"></label>
-  <label data-tip="num_predict">tokeni <input id="npred" type="number" min="4" max="64" style="width:56px"></label>
+  <label>tokeni <input id="npred" type="number" min="4" max="64" style="width:56px"></label>
   <div class="status" id="conn">ws: <b>…</b></div>
 </header>
 <main>
@@ -218,9 +218,6 @@ const TIPS = {
   min_p: { t:'min_p', r:'0 – 1 · 0 = dezactivat',
     d:'Elimină tokenii a căror probabilitate e sub <b>P × probabilitatea celui mai bun token</b>. Exemplu la 0.05: dacă cel mai bun are 40%, rămân doar cei cu cel puțin 2%. Pragul e relativ, deci se adaptează foarte bine: e filtrul care permite temperaturi mari (1.2 – 1.5) fără ca textul să devină gunoi. Combinația recomandată pentru explorare: temperature mare + min_p 0.05 + top_p 1 + top_k 0.',
     up:'mai previzibil (0.1 – 0.3)', dn:'mai creativ (0.02 – 0.05), combinat cu temp mare' },
-  num_predict: { t:'tokeni per pas', r:'4 – 64',
-    d:'Câți tokeni generează motorul la un pas (W sau stick sus). Nu schimbă creativitatea, ci granularitatea arborelui: puțini tokeni = ramificări dese și control fin asupra fiecărui cuvânt; mulți tokeni = bucăți mai lungi de text per nod, mai puține decizii, mai rapid de citit.',
-    up:'bucăți mai lungi, mai puține noduri', dn:'control mai fin, cuvânt cu cuvânt' },
 };
 const tipEl = $('#tip');
 function showTip(lbl){
