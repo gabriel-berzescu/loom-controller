@@ -37,7 +37,7 @@ async function call(cmd, params = {}) {
 }
 
 const text = t => ({ content: [{ type: 'text', text: typeof t === 'string' ? t : JSON.stringify(t, null, 1) }] });
-// răspuns standard după o mișcare: calea + siblingii nodului activ
+// răspuns standard după o mișcare: calea + frații nodului activ
 function describe(state, extra = {}) {
   const act = state.nodes.find(n => n.id === state.active);
   const sibs = act.parent_id === null ? [] : state.nodes.filter(n => n.parent_id === act.parent_id);
@@ -58,9 +58,9 @@ const wrap = fn => async (args) => {
 
 const server = new McpServer({ name: 'loom-controller', version: '0.1.0' });
 
-server.tool('step', 'Stick stâng SUS: un cuvânt înainte. Dacă nodul activ are copii vizibili, intră în copilul activ; altfel generează 5 siblingi (5 call-uri Ollama) și intră în primul sosit.', {},
+server.tool('step', 'Stick stâng SUS: un cuvânt înainte. Dacă nodul activ are copii vizibili, intră în copilul activ; altfel generează 5 frați (5 call-uri Ollama) și intră în primul sosit.', {},
   wrap(async () => { const r = await call('step'); return describe(r.state, r.result); }));
-server.tool('sibling', 'Stick stâng STÂNGA/DREAPTA: sari pe siblingul anterior (dir=-1) sau următor (dir=1). La capătul listei generează unul nou (fără wraparound).',
+server.tool('sibling', 'Stick stâng STÂNGA/DREAPTA: sari pe fratele anterior (dir=-1) sau următor (dir=1). La capătul listei generează unul nou (fără wraparound).',
   { dir: z.number().int().default(1) },
   wrap(async ({ dir }) => { const r = await call('sibling', { dir }); return describe(r.state, r.result); }));
 server.tool('up', 'Stick stâng JOS: coboară la părinte.', {},
@@ -75,7 +75,7 @@ server.tool('follow_human', 'Sari cu cursorul tău pe nodul unde e cursorul omul
     const r = await call('goto', { id: hc.active });
     return describe(r.state);
   }));
-server.tool('path', 'Textul căii curente (rădăcină → cursor), plus siblingii și copiii nodului activ.', {},
+server.tool('path', 'Textul căii curente (rădăcină → cursor), plus frații și copiii nodului activ.', {},
   wrap(async () => { const r = await call('state'); return describe(r.state); }));
 server.tool('tree', 'Tot arborele, ca listă de noduri {id, parent_id, text, hidden, bookmarked}.', {},
   wrap(async () => { const r = await call('state'); return text({ active: r.state.active, nodes: r.state.nodes.map(({ id, parent_id, text, hidden, bookmarked }) => ({ id, parent_id, text, hidden: hidden || undefined, bookmarked: bookmarked || undefined })) }); }));

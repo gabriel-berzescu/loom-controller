@@ -11,7 +11,7 @@ LOOM_MODEL=gemma3:270m node motor.js   # sau cu modelul mic, pentru teste
 ```
 
 Deschide http://localhost:7331 în Chrome, conectează F310-ul (switch pe **X**).
-Stick stâng: sus = cuvânt, stânga/dreapta = siblingi, jos = părinte. Stick drept = pan.
+Stick stâng: sus = cuvânt, stânga/dreapta = frați, jos = părinte. Stick drept = pan.
 Tastatură (fallback): `W A S D` / săgeți / `H` ascunde / `B` bookmark.
 Mouse: click and drag = pan, scroll = zoom (spre cursor), click pe nod = du-te la nod.
 Parametrii de sampling din header (temp, top_k, top_p, min_p) au tooltip-uri

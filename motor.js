@@ -17,9 +17,9 @@ const SIBLINGS = 5;
 // ---------- setări globale (din UI/MCP, nu de pe controller) ----------
 const settings = {
   model: process.env.LOOM_MODEL || 'gemma4:e2b',
-  temperature: 1.0,
-  top_k: 40,      // câți candidați intră în calcul (mai mare = coadă mai lungă)
-  top_p: 0.9,     // nucleus sampling: taie coada după masă de probabilitate
+  temperature: 2.0,
+  top_k: 150,     // câți candidați intră în calcul (mai mare = coadă mai lungă)
+  top_p: 1.0,     // nucleus sampling: taie coada după masă de probabilitate
   min_p: 0.0,     // taie candidații sub min_p × prob. celui mai probabil
   num_predict: 16,
   keep_alive: '30m',
@@ -197,7 +197,7 @@ const commands = {
   },
   bookmark: (p, cur) => { node(p.id ?? cur.active).bookmarked = p.bookmarked ?? true; return { ok: true }; },
   settings: (p) => { for (const k of ['model', 'temperature', 'top_k', 'top_p', 'min_p', 'num_predict']) if (p[k] !== undefined) settings[k] = p[k]; return settings; },
-  new: (p, cur) => { newTree(p.prompt ?? 'Once upon a time'); return { ok: true }; },
+  new: (p, cur) => { newTree(p.prompt ?? 'Adevărul este că'); return { ok: true }; },
   save: (p) => ({ name: save(p.name) }),
   load: (p) => { load(p.name); return { ok: true }; },
   sessions: () => ({ sessions: listSessions() }),
@@ -243,7 +243,7 @@ wss.on('connection', ws => {
   });
 });
 
-newTree(process.env.LOOM_PROMPT || 'Once upon a time');
+newTree(process.env.LOOM_PROMPT || 'Adevărul este că');
 server.listen(PORT, () => {
   console.log(`motor loom: http://localhost:${PORT}  (ws pe același port)  model=${settings.model}`);
   // ținem modelul cald
