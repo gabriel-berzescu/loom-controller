@@ -1,6 +1,6 @@
 # loom-controller
 
-Loom pilotat din gamepad. Spec-ul complet: `brainstorming.md` (+ `brainstorming.html`, cu simulator).
+Loom pilotat din gamepad.  Spec-ul complet: `brainstorming.md` (+ `brainstorming.html`, cu simulator).
 
 ## Pornire
 
